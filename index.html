@@ -127,6 +127,16 @@
   .flow-ctrls button.primary{background:var(--clayDk);color:#fff;border-color:var(--clayDk)}
   .flow-toggles{position:absolute;bottom:20px;display:flex;gap:18px;color:var(--muted);font-size:13px}
   .flow-toggles label{display:flex;align-items:center;gap:6px;cursor:pointer}
+  .printhead{display:none}
+  @media print{
+    .printhead{display:block;text-align:center;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid #C8A0A6}
+    .printhead h1{font-family:var(--font-head);color:#A87C83;margin:0 0 4px;font-size:26px}
+    .printhead .meta{color:#888;font-size:13px}
+    body.theme-minimal .printhead{border-bottom:1px solid #ccc}
+    body.theme-minimal .printhead h1{font-family:var(--font-body);color:#222;font-size:22px}
+    body.theme-botanical .printhead{border-bottom:2px solid #a8ad91}
+    body.theme-botanical .printhead h1{color:#7E8466}
+  }
   .printfoot{display:none}
   @media print{.printfoot{display:block;text-align:center;color:#999;margin-top:22px;font-size:12px}}
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--head);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:80;opacity:0;transition:.25s}
@@ -194,14 +204,15 @@
         <button class="btn ghost" id="b_print">🖨 Print</button>
         <button class="btn ghost" id="b_clear">🧹 Clear</button>
         <span style="flex:1"></span>
-        <button class="btn soon" data-soon="Templates">Templates</button>
+        <button class="btn ghost" id="b_templates">📋 Templates</button>
         <button class="btn ghost" id="b_community">🌐 Community</button>
         <button class="btn ghost" id="b_ai">✨ AI</button>
         <button class="btn ghost" id="b_flow">▶ Flow</button>
-        <button class="btn soon" data-soon="Theme">Theme</button>
+        <button class="btn ghost" id="b_theme">🎨 Theme</button>
       </div>
       <label class="share"><input type="checkbox" id="m_share"/> Share with community when saving</label>
 
+      <div id="printHead" class="printhead"></div>
       <div id="canvas" class="canvas"></div>
       <div id="printFooter" class="printfoot"></div>
     </div>
@@ -220,7 +231,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const arr=v=>Array.isArray(v)?v:[];
 
-let SESSION=null, POSES=[], catFilter="", items=[], currentId=null, DRAG=null;
+let SESSION=null, POSES=[], catFilter="", items=[], currentId=null, DRAG=null, seqTheme="classic";
 
 /* AUTH */
 async function init(){const{data:{session}}=await sb.auth.getSession();if(session)showApp(session);else $("login").classList.remove("hidden");}
@@ -328,7 +339,7 @@ $("b_save").onclick=async()=>{
   const row={name,level:$("m_level").value.trim()||null,style:$("m_style").value.trim()||null,
     duration_label:$("m_duration").value.trim()||null,description:$("m_description").value.trim()||null,
     playlist_url:$("m_playlist").value.trim()||null,tags:tagsArr(),
-    visibility:$("m_share").checked?"community":"private",owner_id:SESSION.user.id};
+    visibility:$("m_share").checked?"community":"private",theme:seqTheme,owner_id:SESSION.user.id};
   if(currentId)row.id=currentId;
   const{data,error}=await sb.from("sequences").upsert(row).select("id").single();
   if(error)return toast("Save failed: "+error.message);
@@ -346,10 +357,10 @@ $("b_save").onclick=async()=>{
 $("b_new").onclick=()=>{if(items.length&&!confirm("Start a new sequence? Unsaved changes will be lost."))return;reset();};
 $("b_clear").onclick=()=>{if(items.length&&!confirm("Clear all poses from this sequence?"))return;items=[];renderCanvas();};
 function reset(){currentId=null;items=[];["m_name","m_description","m_playlist","m_level","m_duration","m_style","m_tags"].forEach(k=>$(k).value="");$("m_share").checked=false;renderCanvas();applyBuilderDefaults();}
-$("b_print").onclick=()=>window.print();
+$("b_print").onclick=()=>{updatePrintHead();window.print();};
 
 $("b_load").onclick=async()=>{
-  const{data,error}=await sb.from("sequences").select("*").eq("owner_id",SESSION.user.id).order("updated_at",{ascending:false});
+  const{data,error}=await sb.from("sequences").select("*").eq("owner_id",SESSION.user.id).eq("is_template",false).order("updated_at",{ascending:false});
   if(error)return toast(error.message);
   const rows=(data||[]).map(s=>`<div class="savedrow" data-id="${s.id}">
     <div style="flex:1"><div style="font-weight:500;color:var(--head)">${esc(s.name)}</div>
@@ -369,7 +380,7 @@ async function loadSeq(id){
   currentId=id;
   $("m_name").value=s.name||"";$("m_description").value=s.description||"";$("m_playlist").value=s.playlist_url||"";
   $("m_level").value=s.level||"";$("m_duration").value=s.duration_label||"";$("m_style").value=s.style||"";
-  $("m_tags").value=arr(s.tags).join(", ");$("m_share").checked=s.visibility==="community";
+  $("m_tags").value=arr(s.tags).join(", ");$("m_share").checked=s.visibility==="community";applyTheme(s.theme||"classic");
   items=(its||[]).map(it=>{
     if(it.item_type==="section")return{kind:"section",title:it.custom_name||"Section"};
     const p=POSES.find(x=>String(x.id)===String(it.pose_id))||{id:it.pose_id,name:it.custom_name,sanskrit_name:it.custom_sanskrit,emoji:it.emoji};
@@ -519,6 +530,60 @@ async function loadCommunity(id){
   closeModal();renderCanvas();toast("Loaded a copy \u2014 tweak and Save to make it yours");
 }
 window.openAI=openAI;window.runAI=runAI;window.openCommunity=openCommunity;window.loadCommunity=loadCommunity;
+/* ---------- TEMPLATES ---------- */
+$("b_templates").onclick=openTemplates;
+async function openTemplates(){
+  $("modalRoot").innerHTML=`<div class="ovl" id="ovl"><div class="modal" onclick="event.stopPropagation()">
+    <h3 class="serif">Templates</h3>
+    <button class="btn" id="tpl_save" style="width:100%;margin-bottom:12px">+ Save current sequence as template</button>
+    <div id="tplList" style="color:var(--muted)">Loading\u2026</div>
+    <button class="btn ghost" style="margin-top:14px;width:100%" onclick="closeModal()">Close</button></div></div>`;
+  $("ovl").onclick=closeModal;$("tpl_save").onclick=saveAsTemplate;
+  const{data}=await sb.from("sequences").select("*").eq("owner_id",SESSION.user.id).eq("is_template",true).order("updated_at",{ascending:false});
+  $("tplList").innerHTML=(data||[]).map(s=>`<div class="savedrow" data-id="${s.id}"><div style="flex:1"><div style="font-weight:500;color:var(--head)">${esc(s.name)}</div><div style="color:var(--muted);font-size:12px">${esc(s.level||"")} ${esc(s.duration_label||"")}</div></div></div>`).join("")||'<div style="color:var(--muted)">No templates yet. Build a sequence, then save it as a template.</div>';
+  $("tplList").querySelectorAll(".savedrow").forEach(el=>el.onclick=()=>loadTemplate(el.dataset.id));
+}
+async function saveAsTemplate(){
+  if(!items.length)return toast("Add poses first.");
+  const row={name:($("m_name").value.trim()||"Untitled")+" (template)",level:$("m_level").value.trim()||null,style:$("m_style").value.trim()||null,
+    duration_label:$("m_duration").value.trim()||null,description:$("m_description").value.trim()||null,playlist_url:$("m_playlist").value.trim()||null,
+    tags:tagsArr(),visibility:"private",is_template:true,theme:seqTheme,owner_id:SESSION.user.id};
+  const{data,error}=await sb.from("sequences").insert(row).select("id").single();
+  if(error)return toast("Failed: "+error.message);
+  const rows=items.map((it,i)=>({sequence_id:data.id,position:i,item_type:it.kind,pose_id:it.kind==="pose"?it.pose.id:null,
+    custom_name:it.kind==="section"?it.title:it.pose.name,custom_sanskrit:it.kind==="pose"?it.pose.sanskrit_name:null,
+    notes:it.notes||null,custom_breaths:it.kind==="pose"&&it.breaths?parseInt(it.breaths):null,
+    emoji:it.kind==="pose"?it.pose.emoji:null,level:it.kind==="pose"?it.pose.difficulty_level:null}));
+  if(rows.length)await sb.from("sequence_items").insert(rows);
+  toast("Saved as template \u2713");openTemplates();
+}
+async function loadTemplate(id){
+  const{data:s}=await sb.from("sequences").select("*").eq("id",id).single();
+  const{data:its}=await sb.from("sequence_items").select("*").eq("sequence_id",id).order("position");
+  currentId=null;
+  $("m_name").value=(s.name||"").replace(/ \(template\)$/,"");$("m_description").value=s.description||"";$("m_playlist").value=s.playlist_url||"";
+  $("m_level").value=s.level||"";$("m_duration").value=s.duration_label||"";$("m_style").value=s.style||"";$("m_tags").value=arr(s.tags).join(", ");$("m_share").checked=false;applyTheme(s.theme||"classic");
+  items=(its||[]).map(it=>{if(it.item_type==="section")return{kind:"section",title:it.custom_name||"Section"};
+    const p=POSES.find(x=>String(x.id)===String(it.pose_id))||{id:it.pose_id,name:it.custom_name,sanskrit_name:it.custom_sanskrit,emoji:it.emoji};
+    return{kind:"pose",pose:p,notes:it.notes||"",breaths:it.custom_breaths||""};});
+  closeModal();renderCanvas();toast("Template loaded");
+}
+
+/* ---------- THEME ---------- */
+$("b_theme").onclick=openTheme;
+function openTheme(){
+  const opts=[["classic","Classic","Serif headings, rose accent"],["minimal","Minimal","Clean monochrome"],["botanical","Botanical","Sage accent"]];
+  $("modalRoot").innerHTML=`<div class="ovl" id="ovl"><div class="modal" onclick="event.stopPropagation()">
+    <h3 class="serif">Print theme</h3>
+    ${opts.map(o=>`<div class="savedrow" data-t="${o[0]}"><div style="flex:1"><div style="font-weight:500;color:var(--head)">${o[1]}${seqTheme===o[0]?" \u2713":""}</div><div style="color:var(--muted);font-size:12px">${o[2]}</div></div></div>`).join("")}
+    <div style="color:var(--muted);font-size:12px;margin-top:6px">Themes style the printed handout. Save the sequence to keep your choice.</div>
+    <button class="btn ghost" style="margin-top:12px;width:100%" onclick="closeModal()">Close</button></div></div>`;
+  $("ovl").onclick=closeModal;
+  $("modalRoot").querySelectorAll(".savedrow").forEach(el=>el.onclick=()=>{applyTheme(el.dataset.t);closeModal();toast("Theme: "+el.dataset.t);});
+}
+function applyTheme(t){seqTheme=t||"classic";document.body.classList.remove("theme-classic","theme-minimal","theme-botanical");document.body.classList.add("theme-"+seqTheme);}
+function updatePrintHead(){const el=$("printHead");if(!el)return;const meta=[$("m_level").value,$("m_duration").value,$("m_style").value].filter(Boolean).join(" \u00b7 ");el.innerHTML=`<h1>${esc($("m_name").value||"My Yoga Sequence")}</h1><div class="meta">${esc(meta)}</div>`+($("m_description").value?`<div class="meta" style="margin-top:6px">${esc($("m_description").value)}</div>`:"");}
+window.openTemplates=openTemplates;window.saveAsTemplate=saveAsTemplate;window.loadTemplate=loadTemplate;window.openTheme=openTheme;
 loadDesign();init();
 </script>
 </body>
