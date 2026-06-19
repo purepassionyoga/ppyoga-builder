@@ -91,6 +91,24 @@
   .section{background:#F6EFF4;border:1px dashed var(--rose);border-radius:12px;padding:9px 12px;margin-bottom:9px;display:flex;gap:10px;align-items:center}
   .section input{flex:1;border:none;background:none;outline:none;font-family:'Playfair Display',serif;font-style:italic;color:var(--clayDk);font-size:17px}
   .pos{color:var(--muted);font-size:11px;width:20px;text-align:right;padding-top:3px}
+  .seqgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px}
+  .seqcard{background:#fff;border:1px solid var(--line);border-radius:13px;padding:9px 9px 10px;display:flex;flex-direction:column;text-align:center;position:relative}
+  .seqcard.over{border-color:var(--rose);box-shadow:0 0 0 2px rgba(194,132,143,.25)}
+  .seqcard.drag{opacity:.4}
+  .seqcard.section{grid-column:1/-1;flex-direction:row;align-items:center;gap:10px;text-align:left;background:#F6EFF4;border-style:dashed;border-color:var(--rose)}
+  .seqcard.section input{flex:1;border:none;background:none;outline:none;font-family:'Playfair Display',serif;font-style:italic;color:var(--clayDk);font-size:16px}
+  .sc-top{display:flex;align-items:center;justify-content:space-between}
+  .sc-num{font-size:12px;color:var(--muted);font-weight:600}
+  .sc-handle{cursor:grab;color:var(--lineDk);font-size:14px;user-select:none}
+  .sc-rm{background:none;border:none;color:var(--clayDk);font-size:14px;cursor:pointer;line-height:1}
+  .sc-th{height:72px;display:flex;align-items:center;justify-content:center;font-size:38px;margin:3px 0}
+  .sc-th img{max-height:100%;max-width:100%;object-fit:contain}
+  .sc-name{font-family:'Playfair Display',serif;color:var(--rose);font-size:14px;line-height:1.15}
+  .sc-san{color:var(--sage);font-style:italic;font-size:11px;margin-top:1px}
+  .sc-cue{color:var(--muted);font-size:11px;margin:5px 0 4px;min-height:28px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .sc-br{color:var(--amber);font-size:11px;font-weight:600;min-height:15px}
+  .sc-edit{margin-top:6px;background:#F6EFF4;color:var(--clayDk);border:none;border-radius:8px;padding:5px 0;font-size:12px;cursor:pointer}
+  .sc-edit:hover{background:#EFE2EC}
 
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--head);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:80;opacity:0;transition:.25s}
   .toast.show{opacity:1}
@@ -102,7 +120,7 @@
 
   @media print{
     body{background:#fff}
-    .top,.panel,.bar,.share,.handle,.rm,#picker,.iopts input.br{display:none!important}
+    .top,.panel,.bar,.share,.handle,.rm,.sc-handle,.sc-rm,.sc-edit,#picker{display:none!important}
     .layout{display:block;padding:0}
     .build{border:none;padding:0}
     .item,.section{break-inside:avoid}
@@ -181,7 +199,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const arr=v=>Array.isArray(v)?v:[];
 
-let SESSION=null, POSES=[], catFilter="", items=[], currentId=null;
+let SESSION=null, POSES=[], catFilter="", items=[], currentId=null, DRAG=null;
 
 /* AUTH */
 async function init(){const{data:{session}}=await sb.auth.getSession();if(session)showApp(session);else $("login").classList.remove("hidden");}
@@ -219,46 +237,66 @@ function renderPicker(){
       <div style="flex:1;min-width:0"><div class="pn">${esc(p.name)}${lv}</div>
       <div class="ps">${esc(p.sanskrit_name||"")}</div><div class="pc">${esc(cue)}</div></div></div>`;
   }).join("")||'<div style="color:var(--muted);padding:8px">No poses match.</div>';
-  $("plist").querySelectorAll(".pitem").forEach(el=>el.onclick=()=>addPose(el.dataset.id));
+  $("plist").querySelectorAll(".pitem").forEach(el=>{el.onclick=()=>addPose(el.dataset.id);el.setAttribute("draggable","true");el.ondragstart=e=>{DRAG={kind:"new",id:el.dataset.id};e.dataTransfer.setData("text/plain","new");e.dataTransfer.effectAllowed="copy";};el.ondragend=()=>{DRAG=null;};});
 }
 $("psearch").addEventListener("input",renderPicker);
 
 /* CANVAS */
-function addPose(id){const p=POSES.find(x=>String(x.id)===String(id));if(!p)return;items.push({kind:"pose",pose:p,notes:"",breaths:""});renderCanvas();}
+function addAt(index,id){const p=POSES.find(x=>String(x.id)===String(id));if(!p)return;items.splice(Math.max(0,Math.min(index,items.length)),0,{kind:"pose",pose:p,notes:"",breaths:5});renderCanvas();}
+function addPose(id){addAt(items.length,id);}
 $("b_section").onclick=()=>{items.push({kind:"section",title:"New section"});renderCanvas();};
 function renderCanvas(){
   const c=$("canvas");
-  if(!items.length){c.innerHTML=`<div class="empty"><div class="fl">🌸</div><h4>Begin Your Sequence</h4><div>Click any pose in the panel to build your flow</div></div>`;return;}
+  if(!items.length){c.innerHTML=`<div class="empty"><div class="fl">🌸</div><h4>Begin Your Sequence</h4><div>Click a pose, or drag one from the list, to build your flow</div></div>`;return;}
   let pn=0;
-  c.innerHTML=items.map((it,i)=>{
+  c.innerHTML=`<div class="seqgrid" id="seqgrid">`+items.map((it,i)=>{
     if(it.kind==="section")
-      return `<div class="section" data-i="${i}"><span class="handle" draggable="true">⠿</span>
-        <input value="${esc(it.title)}" oninput="setItem(${i},'title',this.value)"/><button class="rm" onclick="removeItem(${i})">✕</button></div>`;
+      return `<div class="seqcard section" data-i="${i}"><span class="sc-handle" draggable="true">⠿</span>
+        <input value="${esc(it.title)}" oninput="setItem(${i},'title',this.value)"/>
+        <button class="sc-rm" onclick="removeItem(${i})">✕</button></div>`;
     pn++;const p=it.pose;const thumb=p.image_url?`<img src="${esc(p.image_url)}">`:(p.emoji||"🧘");
-    return `<div class="item" data-i="${i}">
-      <span class="handle" draggable="true">⠿</span><span class="pos">${pn}</span>
-      <div class="ith">${thumb}</div>
-      <div class="ibody"><div class="iname">${esc(p.name)}</div><div class="isan">${esc(p.sanskrit_name||"")}</div>
-        <div class="iopts">
-          <input class="notes" placeholder="Cue / note for this pose…" value="${esc(it.notes)}" oninput="setItem(${i},'notes',this.value)"/>
-          <input class="br" type="number" min="1" placeholder="breaths" value="${esc(it.breaths)}" oninput="setItem(${i},'breaths',this.value)"/>
-        </div></div>
-      <button class="rm" onclick="removeItem(${i})">✕</button></div>`;
-  }).join("");
-  wireDrag();
+    return `<div class="seqcard" data-i="${i}">
+      <div class="sc-top"><span class="sc-handle" draggable="true">⠿</span><span class="sc-num">${pn}</span><button class="sc-rm" onclick="removeItem(${i})">✕</button></div>
+      <div class="sc-th">${thumb}</div>
+      <div class="sc-name">${esc(p.name)}</div>
+      <div class="sc-san">${esc(p.sanskrit_name||"")}</div>
+      <div class="sc-cue">${esc(it.notes||"")}</div>
+      <div class="sc-br">${it.breaths?esc(it.breaths)+" breaths":"&nbsp;"}</div>
+      <button class="sc-edit" onclick="editItem(${i})">Edit</button>
+    </div>`;
+  }).join("")+`</div>`;
+  wireCanvasDnD();
 }
 function removeItem(i){items.splice(i,1);renderCanvas();}
-function wireDrag(){
-  let from=null;
-  document.querySelectorAll("#canvas .item, #canvas .section").forEach(row=>{
-    const h=row.querySelector(".handle");
-    h.ondragstart=e=>{from=+row.dataset.i;row.classList.add("drag");e.dataTransfer.effectAllowed="move";};
-    h.ondragend=()=>row.classList.remove("drag");
-    row.ondragover=e=>{e.preventDefault();row.classList.add("over");};
-    row.ondragleave=()=>row.classList.remove("over");
-    row.ondrop=e=>{e.preventDefault();row.classList.remove("over");const to=+row.dataset.i;if(from===null||from===to)return;const[m]=items.splice(from,1);items.splice(to,0,m);from=null;renderCanvas();};
+function handleDrop(target){
+  if(!DRAG)return;
+  if(DRAG.kind==="new"){addAt(target,DRAG.id);}
+  else if(DRAG.kind==="move"){const f=DRAG.from;if(f!==target){const[m]=items.splice(f,1);const t=target>f?target-1:target;items.splice(t,0,m);renderCanvas();}}
+  DRAG=null;
+}
+function wireCanvasDnD(){
+  document.querySelectorAll("#seqgrid .seqcard").forEach(card=>{
+    const i=+card.dataset.i;const h=card.querySelector(".sc-handle");
+    if(h){h.ondragstart=e=>{DRAG={kind:"move",from:i};card.classList.add("drag");e.dataTransfer.setData("text/plain","move");e.dataTransfer.effectAllowed="move";};
+          h.ondragend=()=>{card.classList.remove("drag");};}
+    card.ondragover=e=>{if(DRAG){e.preventDefault();card.classList.add("over");}};
+    card.ondragleave=()=>card.classList.remove("over");
+    card.ondrop=e=>{if(!DRAG)return;e.preventDefault();e.stopPropagation();card.classList.remove("over");handleDrop(i);};
   });
 }
+function editItem(i){
+  const it=items[i];if(!it||it.kind!=="pose")return;
+  $("modalRoot").innerHTML=`<div class="ovl" id="ovl"><div class="modal" onclick="event.stopPropagation()">
+    <h3 class="serif">${esc(it.pose.name)}</h3>
+    <div class="field"><label>Cue / note for this pose</label><textarea id="ie_notes" rows="3">${esc(it.notes||"")}</textarea></div>
+    <div class="field"><label>Breaths</label><input id="ie_breaths" type="number" min="1" value="${esc(it.breaths||"")}"/></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="flex:1" onclick="saveItem(${i})">Done</button>
+    </div></div></div>`;
+  $("ovl").onclick=closeModal;
+}
+function saveItem(i){items[i].notes=$("ie_notes").value;const b=$("ie_breaths").value;items[i].breaths=b?parseInt(b):"";closeModal();renderCanvas();}
 
 /* SAVE / LOAD */
 function tagsArr(){return ($("m_tags").value||"").split(",").map(s=>s.trim()).filter(Boolean);}
@@ -322,7 +360,9 @@ async function loadSeq(id){
 /* misc */
 document.querySelectorAll(".btn.soon").forEach(b=>b.onclick=()=>toast(b.dataset.soon+" — coming in the next update."));
 let tt;function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),2400);}
-window.setItem=(i,f,v)=>{items[i][f]=v;};window.removeItem=removeItem;window.closeModal=closeModal;
+window.setItem=(i,f,v)=>{items[i][f]=v;};window.removeItem=removeItem;window.closeModal=closeModal;window.editItem=editItem;window.saveItem=saveItem;
+$("canvas").addEventListener("dragover",e=>{if(DRAG)e.preventDefault();});
+$("canvas").addEventListener("drop",e=>{if(!DRAG)return;e.preventDefault();handleDrop(items.length);});
 sb.auth.onAuthStateChange((_e,s)=>{if(!s){$("app").classList.add("hidden");$("login").classList.remove("hidden");}});
 init();
 </script>
