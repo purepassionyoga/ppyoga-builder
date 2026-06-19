@@ -195,8 +195,8 @@
         <button class="btn ghost" id="b_clear">🧹 Clear</button>
         <span style="flex:1"></span>
         <button class="btn soon" data-soon="Templates">Templates</button>
-        <button class="btn soon" data-soon="Community browse">Community</button>
-        <button class="btn soon" data-soon="AI generate">AI</button>
+        <button class="btn ghost" id="b_community">🌐 Community</button>
+        <button class="btn ghost" id="b_ai">✨ AI</button>
         <button class="btn ghost" id="b_flow">▶ Flow</button>
         <button class="btn soon" data-soon="Theme">Theme</button>
       </div>
@@ -453,6 +453,72 @@ function speakFlow(t){try{if(flowVoice&&"speechSynthesis"in window){const u=new 
 function chimeFlow(){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type="sine";o.frequency.value=528;g.gain.setValueAtTime(0.0001,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.25,ctx.currentTime+0.05);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+1.1);o.start();o.stop(ctx.currentTime+1.15);}catch(e){}}
 $("b_flow").onclick=startFlow;
 window.endFlow=endFlow;window.flowPrev=flowPrev;window.flowNext=flowNext;window.flowToggle=flowToggle;
+/* ---------- AI GENERATE ---------- */
+const FN_URL=SUPABASE_URL+"/functions/v1/generate-sequence";
+$("b_ai").onclick=openAI;
+function openAI(){
+  $("modalRoot").innerHTML=`<div class="ovl" id="ovl"><div class="modal" onclick="event.stopPropagation()">
+    <h3 class="serif">Generate with AI</h3>
+    <div class="field"><label>Describe the class you want</label><textarea id="ai_prompt" rows="3" placeholder="e.g. 45-minute energizing vinyasa focused on hip openers, peaking with pigeon"></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field"><label>Level</label><input id="ai_level" value="${esc($("m_level").value||"")}" placeholder="Beginner / Intermediate"/></div>
+      <div class="field"><label>Duration</label><input id="ai_duration" value="${esc($("m_duration").value||"")}" placeholder="30 min"/></div></div>
+    <div id="ai_err" class="err hidden"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="flex:1" id="ai_go">Generate</button></div>
+    <div id="ai_status" style="color:var(--muted);font-size:13px;margin-top:8px"></div></div></div>`;
+  $("ovl").onclick=closeModal;$("ai_go").onclick=runAI;
+}
+async function runAI(){
+  $("ai_err").classList.add("hidden");
+  $("ai_go").disabled=true;$("ai_go").textContent="Generating\u2026";$("ai_status").textContent="Designing your sequence\u2026 this can take a few seconds.";
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    const res=await fetch(FN_URL,{method:"POST",headers:{"Content-Type":"application/json","apikey":ANON,"Authorization":"Bearer "+(session&&session.access_token)},
+      body:JSON.stringify({prompt:$("ai_prompt").value.trim(),level:$("ai_level").value.trim(),duration:$("ai_duration").value.trim(),poses:POSES.map(p=>p.name)})});
+    const out=await res.json();
+    if(!res.ok||out.error)throw new Error(out.error||("Request failed ("+res.status+")"));
+    const built=[];let missed=0;
+    (out.items||[]).forEach(it=>{const p=POSES.find(x=>(x.name||"").toLowerCase()===String(it.pose||"").toLowerCase());
+      if(p)built.push({kind:"pose",pose:p,notes:it.cue||"",breaths:parseInt(it.breaths)||5});else missed++;});
+    if(!built.length)throw new Error("No matching poses came back \u2014 try rephrasing.");
+    items=built;if(out.title&&!$("m_name").value.trim())$("m_name").value=out.title;
+    if($("ai_level").value)$("m_level").value=$("ai_level").value;if($("ai_duration").value)$("m_duration").value=$("ai_duration").value;
+    closeModal();renderCanvas();toast("Generated "+built.length+" poses"+(missed?" ("+missed+" skipped)":"")+" \u2713");
+  }catch(e){const el=$("ai_err");el.textContent=e.message;el.classList.remove("hidden");$("ai_status").textContent="";}
+  $("ai_go").disabled=false;$("ai_go").textContent="Generate";
+}
+
+/* ---------- COMMUNITY BROWSE ---------- */
+$("b_community").onclick=openCommunity;
+async function openCommunity(){
+  $("modalRoot").innerHTML=`<div class="ovl" id="ovl"><div class="modal" onclick="event.stopPropagation()">
+    <h3 class="serif">Community sequences</h3><div id="comList" style="color:var(--muted)">Loading\u2026</div>
+    <button class="btn ghost" style="margin-top:14px;width:100%" onclick="closeModal()">Close</button></div></div>`;
+  $("ovl").onclick=closeModal;
+  let r=await sb.from("sequences").select("*, owner:profiles(display_name)").eq("visibility","community").order("likes_count",{ascending:false}).limit(50);
+  if(r.error)r=await sb.from("sequences").select("*").eq("visibility","community").order("likes_count",{ascending:false}).limit(50);
+  const rows=(r.data||[]).map(s=>`<div class="savedrow" data-id="${s.id}">
+    <div style="flex:1"><div style="font-weight:500;color:var(--head)">${esc(s.name)}</div>
+    <div style="color:var(--muted);font-size:12px">${esc((s.owner&&s.owner.display_name)||"PPY teacher")} \u00b7 ${esc(s.level||"")} ${esc(s.duration_label||"")}</div></div>
+    <span style="color:var(--muted);font-size:11px">\u2665 ${s.likes_count||0}</span></div>`).join("")||'<div style="color:var(--muted)">No community sequences yet.</div>';
+  $("comList").innerHTML=rows;
+  $("comList").querySelectorAll(".savedrow").forEach(el=>el.onclick=()=>loadCommunity(el.dataset.id));
+}
+async function loadCommunity(id){
+  const{data:s}=await sb.from("sequences").select("*").eq("id",id).single();
+  const{data:its}=await sb.from("sequence_items").select("*").eq("sequence_id",id).order("position");
+  currentId=null;
+  $("m_name").value=(s.name||"")+" (copy)";$("m_description").value=s.description||"";$("m_playlist").value=s.playlist_url||"";
+  $("m_level").value=s.level||"";$("m_duration").value=s.duration_label||"";$("m_style").value=s.style||"";
+  $("m_tags").value=arr(s.tags).join(", ");$("m_share").checked=false;
+  items=(its||[]).map(it=>{if(it.item_type==="section")return{kind:"section",title:it.custom_name||"Section"};
+    const p=POSES.find(x=>String(x.id)===String(it.pose_id))||{id:it.pose_id,name:it.custom_name,sanskrit_name:it.custom_sanskrit,emoji:it.emoji};
+    return{kind:"pose",pose:p,notes:it.notes||"",breaths:it.custom_breaths||""};});
+  closeModal();renderCanvas();toast("Loaded a copy \u2014 tweak and Save to make it yours");
+}
+window.openAI=openAI;window.runAI=runAI;window.openCommunity=openCommunity;window.loadCommunity=loadCommunity;
 loadDesign();init();
 </script>
 </body>
