@@ -3,235 +3,328 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Pose Library · Pure Passion Yoga</title>
+<title>Sequence Builder · Pure Passion Yoga</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400;1,500&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,500&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
 <style>
   :root{
-    --rose:#C2848F; --roseTitle:#C9A6AC; --roseDeep:#A66472; --sage:#8F9A63;
-    --taupe:#9C8579; --body:#6C7682; --paper:#fff; --stage:#FBF8F6; --line:#EFE6E8;
-    --lineDk:#E2D7D9; --chipBg:#F6ECEF; --chipFg:#B06B79; --sageBg:#EEF1E4; --sageFg:#6E7A46;
+    --bg:#F5F1F4; --card:#fff; --ink:#2C2238; --head:#3A2E48; --aub:#4A3A5A;
+    --rose:#C2848F; --clayDk:#A66472; --sage:#8F9A63; --jade:#2E7D6B; --amber:#B98A1F;
+    --muted:#8A8090; --line:#ECE5EC; --lineDk:#DDD2DD; --field:#FBF9FB;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--stage);color:var(--body);font-family:'Poppins',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Poppins',system-ui,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
   .serif{font-family:'Playfair Display',Georgia,serif}
-  a{color:inherit;text-decoration:none}
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit;font-size:14px}
+  .hidden{display:none!important}
+  .btn{background:var(--clayDk);color:#fff;border:none;padding:8px 14px;border-radius:9px;font-weight:500;font-size:13px}
+  .btn:hover{background:#925266}
+  .btn.ghost{background:#fff;color:var(--aub);border:1px solid var(--lineDk)}
+  .btn.ghost:hover{border-color:var(--rose)}
+  .btn.soon{background:#F2ECF2;color:#B3A8B8;border:1px solid var(--line)}
+  .btn:disabled{opacity:.5}
 
-  header{background:var(--paper);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
-  .bar{max-width:1200px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-  .brand{font-family:'Playfair Display',serif;font-weight:700;font-size:22px;color:var(--roseDeep);letter-spacing:.02em}
-  nav{display:flex;gap:18px;font-size:13px;color:var(--taupe)}
-  nav a.active{color:var(--rose);font-weight:600}
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lcard{background:#fff;border:1px solid var(--line);border-radius:22px;padding:38px 34px;width:100%;max-width:380px;box-shadow:0 18px 50px rgba(74,58,90,.08)}
+  .lcard h1{font-family:'Playfair Display',serif;color:var(--clayDk);font-size:26px;margin:0 0 4px;text-align:center}
+  .lcard p{color:var(--muted);text-align:center;margin:0 0 24px;font-size:13px}
+  .field{margin-bottom:13px}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  .field input,.field select,.field textarea{width:100%;padding:9px 12px;border:1px solid var(--lineDk);border-radius:9px;background:var(--field);color:var(--ink);outline:none}
+  .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--rose)}
+  .err{background:#FBE6DF;color:#A03A22;border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:12px}
 
-  .wrap{max-width:1200px;margin:0 auto;padding:24px}
-  .search{width:100%;padding:12px 16px;border:1px solid var(--lineDk);border-radius:12px;font:inherit;font-size:14px;outline:none;background:#fff;color:#2A2330;margin-bottom:18px}
-  .frow{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;flex-wrap:wrap}
-  .flabel{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--taupe);width:96px;flex:0 0 auto;padding-top:7px}
-  .chips{display:flex;flex-wrap:wrap;gap:6px;flex:1}
-  .chip{font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--body);cursor:pointer;transition:.15s}
-  .chip:hover{border-color:var(--rose)}
-  .chip.on{background:var(--rose);color:#fff;border-color:var(--rose)}
+  .top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+  .topin{max-width:1320px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:14px}
+  .brand{font-family:'Playfair Display',serif;font-weight:700;color:var(--clayDk);font-size:18px}
+  .tag-admin{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+  .who{margin-left:auto;color:var(--muted);font-size:13px;display:flex;align-items:center;gap:12px}
 
-  .count{color:var(--taupe);font-size:13px;margin:14px 0 18px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:16px}
-  .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;transition:.18s;position:relative}
-  .card:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(166,100,114,.12);border-color:var(--lineDk)}
-  .thumb{height:140px;display:flex;align-items:center;justify-content:center;background:#fff;border-bottom:1px solid var(--line);font-size:50px}
-  .thumb img{max-height:100%;max-width:100%;object-fit:contain}
-  .cbody{padding:12px 14px 14px}
-  .cname{font-family:'Playfair Display',serif;font-weight:600;font-size:16px;color:var(--rose);line-height:1.2}
-  .csans{font-family:'Playfair Display',serif;font-style:italic;color:var(--sage);font-size:13px;margin-top:2px}
-  .crow{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:11.5px;color:var(--taupe)}
-  .badge{font-size:11px;padding:2px 9px;border-radius:999px;font-weight:500}
-  .heart{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:999px;background:rgba(255,255,255,.92);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--rose);font-size:15px}
-  .heart.on{background:var(--rose);color:#fff;border-color:var(--rose)}
+  .layout{max-width:1320px;margin:0 auto;padding:16px 20px 60px;display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start}
+  @media (max-width:860px){.layout{grid-template-columns:1fr}}
 
-  .state{padding:60px 20px;text-align:center;color:var(--taupe)}
+  /* picker */
+  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;position:sticky;top:74px;max-height:calc(100vh - 92px);display:flex;flex-direction:column}
+  .panel h3{font-family:'Playfair Display',serif;color:var(--head);margin:0 0 10px;font-size:16px}
+  .psearch{width:100%;padding:8px 11px;border:1px solid var(--lineDk);border-radius:9px;background:var(--field);outline:none;margin-bottom:8px}
+  .cats{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+  .cat{font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted)}
+  .cat.on{background:var(--rose);color:#fff;border-color:var(--rose)}
+  .plist{overflow:auto;flex:1;margin:0 -6px;padding:0 6px}
+  .pitem{display:flex;gap:10px;align-items:flex-start;padding:8px;border-radius:10px;cursor:pointer}
+  .pitem:hover{background:#FBF7FA}
+  .pth{width:34px;height:34px;border-radius:8px;background:#F4EEF3;display:flex;align-items:center;justify-content:center;font-size:17px;overflow:hidden;flex:0 0 auto}
+  .pth img{max-width:100%;max-height:100%;object-fit:contain}
+  .pn{font-weight:500;color:var(--head);font-size:13px;line-height:1.2}
+  .ps{color:var(--sage);font-style:italic;font-size:11px}
+  .pc{color:var(--muted);font-size:11px;margin-top:1px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+  .lv{font-size:10px;color:var(--amber);float:right}
 
-  /* modal */
-  .overlay{position:fixed;inset:0;background:rgba(58,38,44,.42);display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow:auto;z-index:50}
-  .modal{background:#fff;max-width:920px;width:100%;border-radius:26px;margin:16px 0;overflow:hidden;animation:in .28s cubic-bezier(.2,.7,.2,1)}
-  @keyframes in{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}
-  @media (prefers-reduced-motion:reduce){.modal{animation:none}}
-  .mtop{position:sticky;top:0;background:rgba(255,255,255,.93);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);display:flex;justify-content:flex-end;padding:12px 18px;z-index:2}
-  .close{background:#CDA0A6;color:#fff;border:none;font:inherit;font-size:13px;padding:7px 16px;border-radius:999px;cursor:pointer}
-  .mbody{padding:8px 28px 44px}
-  .mhead{text-align:center;padding-top:8px}
-  .mtitle{font-family:'Playfair Display',serif;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--roseTitle);font-size:40px;margin:0}
-  .msans{font-family:'Playfair Display',serif;font-style:italic;color:var(--sage);font-size:22px;margin-top:4px}
-  .mpron{font-family:'Playfair Display',serif;color:var(--taupe);font-size:17px;margin-top:2px}
-  .malt{font-size:12px;color:var(--taupe);margin-top:10px}
-  .facts{display:flex;justify-content:center;flex-wrap:wrap;margin:24px 0}
-  .fact{padding:0 22px;text-align:center;border-left:1px solid var(--line)}
-  .fact:first-child{border-left:none}
-  .fact .l{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--taupe)}
-  .fact .v{font-size:14px;color:#2A2330;font-weight:500;margin-top:2px}
-  .intro{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center}
-  .intro p{font-size:15px;line-height:1.7;color:var(--body)}
-  .fig{background:#FAF5F2;border:1px solid var(--line);border-radius:18px;min-height:230px;display:flex;align-items:center;justify-content:center;font-size:90px}
-  .fig img{max-height:230px;max-width:100%;object-fit:contain}
-  .rule{border-top:1px solid var(--line);margin:30px 0}
-  .secgrid{display:grid;grid-template-columns:1fr 1fr;gap:30px 48px}
-  .sec h3{font-family:'Playfair Display',serif;color:var(--rose);font-size:23px;margin:0 0 12px}
-  .sec, .sec p, .sec li{font-size:14px;line-height:1.65;color:var(--body)}
-  .sec.full{grid-column:1/-1}
-  .sec p{margin:0 0 10px}
-  ul.clean{list-style:none;padding:0;margin:0}
-  ul.clean li{display:flex;gap:10px;margin-bottom:8px}
-  ul.clean li::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--rose);margin-top:8px;flex:0 0 auto}
-  ol.steps{list-style:none;padding:0;margin:0;counter-reset:s}
-  ol.steps li{display:flex;gap:12px;margin-bottom:10px;counter-increment:s}
-  ol.steps li::before{content:counter(s);font-family:'Playfair Display',serif;color:var(--roseDeep);font-size:18px;width:18px;flex:0 0 auto}
-  .tags{display:flex;flex-wrap:wrap;gap:7px}
-  .tag{font-size:12px;padding:4px 11px;border-radius:999px;background:var(--chipBg);color:var(--chipFg)}
-  .tag.sage{background:var(--sageBg);color:var(--sageFg)}
-  .affirm{margin:36px auto 0;max-width:640px;background:var(--chipBg);border-radius:18px;text-align:center;padding:26px}
-  .affirm .l{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--roseDeep)}
-  .affirm .q{font-family:'Playfair Display',serif;font-style:italic;color:var(--roseDeep);font-size:24px;margin-top:8px}
-  .vary{margin-top:44px;text-align:center}
-  .vary h2{font-family:'Playfair Display',serif;text-transform:uppercase;letter-spacing:.18em;color:var(--roseTitle);font-size:28px;margin:0 0 16px}
-  .vchips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;max-width:640px;margin:0 auto}
-  .vchip{font-size:14px;padding:8px 16px;border-radius:12px;background:#FAF5F2;border:1px solid var(--line);color:var(--body)}
-  @media (max-width:640px){.intro,.secgrid{grid-template-columns:1fr}.mtitle{font-size:30px}.flabel{width:100%}}
+  /* builder */
+  .build{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+  .titlein{font-family:'Playfair Display',serif;font-size:24px;color:var(--clayDk);border:none;outline:none;width:100%;background:none;margin-bottom:4px}
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+  .meta .full{grid-column:1/-1}
+  .meta input,.meta select,.meta textarea{width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:var(--field);outline:none}
+  .bar{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin:12px 0;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .share{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:13px;margin:8px 0}
+
+  .canvas{margin-top:14px;min-height:160px}
+  .empty{border:2px dashed var(--lineDk);border-radius:14px;padding:48px 20px;text-align:center;color:var(--muted)}
+  .empty .fl{font-size:30px}
+  .empty h4{font-family:'Playfair Display',serif;font-style:italic;color:var(--rose);font-size:22px;margin:8px 0 4px;font-weight:500}
+  .item{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:9px}
+  .item.drag{opacity:.4}
+  .item.over{border-color:var(--rose);box-shadow:0 0 0 2px rgba(194,132,143,.2)}
+  .handle{cursor:grab;color:var(--lineDk);font-size:18px;padding-top:4px;user-select:none}
+  .ith{width:42px;height:42px;border-radius:9px;background:#F4EEF3;display:flex;align-items:center;justify-content:center;font-size:21px;overflow:hidden;flex:0 0 auto}
+  .ith img{max-width:100%;max-height:100%;object-fit:contain}
+  .ibody{flex:1;min-width:0}
+  .iname{font-weight:500;color:var(--head)}
+  .isan{color:var(--sage);font-style:italic;font-size:12px}
+  .iopts{display:flex;gap:8px;align-items:center;margin-top:7px}
+  .iopts input.notes{flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--field);outline:none;font-size:13px}
+  .iopts input.br{width:78px;padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--field);outline:none;font-size:13px}
+  .rm{background:none;border:none;color:var(--clayDk);font-size:16px;padding:2px 6px}
+  .section{background:#F6EFF4;border:1px dashed var(--rose);border-radius:12px;padding:9px 12px;margin-bottom:9px;display:flex;gap:10px;align-items:center}
+  .section input{flex:1;border:none;background:none;outline:none;font-family:'Playfair Display',serif;font-style:italic;color:var(--clayDk);font-size:17px}
+  .pos{color:var(--muted);font-size:11px;width:20px;text-align:right;padding-top:3px}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--head);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:80;opacity:0;transition:.25s}
+  .toast.show{opacity:1}
+  .ovl{position:fixed;inset:0;background:rgba(44,34,56,.4);z-index:60;display:flex;align-items:center;justify-content:center;padding:18px}
+  .modal{background:#fff;border-radius:18px;width:100%;max-width:440px;max-height:80vh;overflow:auto;padding:20px}
+  .modal h3{font-family:'Playfair Display',serif;color:var(--head);margin:0 0 12px}
+  .savedrow{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer}
+  .savedrow:hover{background:#FBF7FA}
+
+  @media print{
+    body{background:#fff}
+    .top,.panel,.bar,.share,.handle,.rm,#picker,.iopts input.br{display:none!important}
+    .layout{display:block;padding:0}
+    .build{border:none;padding:0}
+    .item,.section{break-inside:avoid}
+  }
 </style>
 </head>
 <body>
-<header>
-  <div class="bar">
-    <div class="brand">Pure Passion Yoga</div>
-    <nav>
-      <a class="active">Pose Library</a>
-      <a href="https://purepassionyoga.com" target="_blank">Home</a>
-      <a href="https://purepassionyoga.com/shop" target="_blank">Shop</a>
-    </nav>
-  </div>
-</header>
 
-<div class="wrap">
-  <input id="search" class="search" placeholder="Search by name or Sanskrit…" />
-  <div id="filters"></div>
-  <div id="count" class="count"></div>
-  <div id="grid" class="grid"></div>
-  <div id="state" class="state">Loading your pose library…</div>
+<div id="login">
+  <div class="lcard">
+    <h1 class="serif">Pure Passion Yoga</h1>
+    <p>Sequence Builder — teacher sign-in</p>
+    <div id="loginErr" class="err hidden"></div>
+    <div class="field"><label>Email</label><input id="email" type="email" autocomplete="username"/></div>
+    <div class="field"><label>Password</label><input id="password" type="password" autocomplete="current-password"/></div>
+    <button id="signin" class="btn" style="width:100%;margin-top:6px">Sign in</button>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <div class="top"><div class="topin">
+    <span class="brand">Pure Passion Yoga</span><span class="tag-admin">Sequence Builder</span>
+    <span class="who"><span id="whoami"></span><button id="signout" class="btn ghost" style="padding:6px 12px">Sign out</button></span>
+  </div></div>
+
+  <div class="layout">
+    <!-- PICKER -->
+    <div class="panel" id="picker">
+      <h3>Poses</h3>
+      <input id="psearch" class="psearch" placeholder="Search poses…"/>
+      <div id="cats" class="cats"></div>
+      <div id="plist" class="plist"></div>
+    </div>
+
+    <!-- BUILDER -->
+    <div class="build">
+      <input id="m_name" class="titlein" placeholder="My Yoga Sequence"/>
+      <div class="meta">
+        <textarea id="m_description" class="full" rows="2" placeholder="Sequence description, intention, or theme… (optional)"></textarea>
+        <input id="m_playlist" class="full" placeholder="🎵 Playlist link — Spotify, YouTube, Apple Music… (optional)"/>
+        <input id="m_level" placeholder="Level (e.g. Beginner)"/>
+        <input id="m_duration" placeholder="Duration (e.g. 30 min)"/>
+        <input id="m_style" placeholder="Yoga style (e.g. Vinyasa)"/>
+        <input id="m_tags" placeholder="Tags (comma separated)"/>
+      </div>
+
+      <div class="bar">
+        <button class="btn" id="b_save">💾 Save</button>
+        <button class="btn ghost" id="b_load">📂 Load Saved…</button>
+        <button class="btn ghost" id="b_new">✦ New</button>
+        <button class="btn ghost" id="b_section">＋ Section</button>
+        <button class="btn ghost" id="b_print">🖨 Print</button>
+        <button class="btn ghost" id="b_clear">🧹 Clear</button>
+        <span style="flex:1"></span>
+        <button class="btn soon" data-soon="Templates">Templates</button>
+        <button class="btn soon" data-soon="Community browse">Community</button>
+        <button class="btn soon" data-soon="AI generate">AI</button>
+        <button class="btn soon" data-soon="Flow / play mode">Flow</button>
+        <button class="btn soon" data-soon="Theme">Theme</button>
+      </div>
+      <label class="share"><input type="checkbox" id="m_share"/> Share with community when saving</label>
+
+      <div id="canvas" class="canvas"></div>
+    </div>
+  </div>
 </div>
 
 <div id="modalRoot"></div>
+<div id="toast" class="toast"></div>
 
 <script>
-const SB = "https://nxjbpgnpblqepathojzr.supabase.co";
-const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54amJwZ25wYmxxZXBhdGhvanpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTE3MTYsImV4cCI6MjA5MDA2NzcxNn0.0thRMnySyacG_fcFiHlteEk4scwfWrP6HmjSlBdg3Ik";
-const SAMPLE=[{"name": "Mountain Pose", "sanskrit_name": "Tadasana", "pronunciation": "tah-DAHS-uh-nuh", "category": "Standing", "difficulty_level": "Beginner", "image_url": null, "alternate_names": ["Samasthiti", "Standing Mountain Pose"], "primary_movement": "Standing", "yoga_styles": ["Hatha Yoga", "Vinyasa Yoga", "Iyengar Yoga", "Ashtanga Yoga"], "chakras": ["Root Chakra"], "benefit_tags": ["Grounding", "Posture Improvement", "Focus", "Postural Strength", "Alignment"], "body_focus": ["Feet & Ankles", "Legs", "Core", "Spine", "Shoulders"], "muscle_groups": ["Arches of the Feet", "Quadriceps", "Abdominals", "Spinal Erectors", "Deltoids", "Hamstrings", "Core Stabilizers"], "movement_actions": ["Core Stabilization", "Leg Weight Bearing", "Spinal Stabilization", "Grounding", "Postural Alignment"], "short_description": "Mountain Pose is a foundational standing posture that teaches alignment, grounding, and body awareness. It forms the base for many other standing yoga poses.", "anatomy_breakdown": "Mountain Pose engages the muscles of the legs, feet, and core to create a stable upright posture. The quadriceps lift the kneecaps, the glutes and hamstrings support the pelvis, and the spinal erectors lengthen the spine. The feet root downward evenly while the core stabilizes the torso and encourages balanced posture.", "instructions": ["Stand with the feet together or hip-width apart.", "Distribute weight evenly across both feet.", "Lift through the arches and engage the legs without locking the knees.", "Lengthen the tailbone gently toward the floor while lifting through the crown of the head.", "Relax the shoulders and let the arms rest naturally beside the body.", "Keep the gaze steady and the breath smooth."], "benefits": "Improves posture and alignment.\nStrengthens the legs, feet, and core.\nDevelops body awareness and grounding.\nCreates a stable foundation for standing poses.\nEncourages calm focus and steady breathing.", "teaching_cues": ["Press evenly through all four corners of the feet.", "Lift the kneecaps gently without locking the knees.", "Lengthen the spine and broaden the collarbones.", "Relax the shoulders away from the ears.", "Engage the core and stand tall through the crown of the head."], "breath_cues": ["Inhale to lengthen the spine and lift through the crown of the head.", "Exhale to root evenly through the feet and steady the body."], "contraindications": "Practice with support if experiencing dizziness or balance instability.\nStand with feet wider apart if needed for stability.", "modifications": ["Stand with feet hip-width apart instead of together.", "Practice with the back against a wall for alignment feedback.", "Place a yoga block between the thighs to encourage leg engagement."], "advanced_variations": ["Practice with eyes closed to deepen internal awareness.", "Lift the arms overhead while maintaining the same grounded alignment.", "Use as a base for transitions into balance poses."], "affirmation": "I stand strong, steady, and grounded."}, {"name": "Tree Pose", "sanskrit_name": "Vrikshasana", "pronunciation": "vrik-SHAH-suh-nuh", "category": "Standing", "difficulty_level": "Beginner", "image_url": null, "alternate_names": ["Single Leg Balance", "Standing Tree", "Yoga Tree Pose", "Vrksa Pose"], "primary_movement": "Balance", "yoga_styles": ["Hatha Yoga", "Vinyasa Yoga", "Iyengar Yoga", "Ashtanga Yoga"], "chakras": ["Root Chakra", "Heart Chakra"], "benefit_tags": ["Balance", "Focus", "Hip Opening", "Mental Clarity", "Postural Strength"], "body_focus": ["Feet & Ankles", "Legs", "Hips", "Core", "Spine"], "muscle_groups": ["Ankle Stabilizers", "Quadriceps", "Glutes", "Abdominals", "Spinal Erectors", "Hip Rotators", "Core Stabilizers"], "movement_actions": ["Hip External Rotation", "Single-Leg Balance", "Core Stabilization", "Leg Weight Bearing", "Balance"], "short_description": "Tree Pose is a standing balance posture that cultivates stability, focus, and grounded awareness. Rooting through one foot while lifting through the spine builds both physical balance and mental steadiness.", "anatomy_breakdown": "Tree Pose primarily challenges the stabilizing muscles of the standing leg and the postural muscles of the spine.\n\nThe standing foot actively presses into the ground while the ankle stabilizers engage to maintain balance. The quadriceps and gluteal muscles support the standing leg, helping maintain knee and hip stability.\n\nThe lifted leg externally rotates at the hip as the foot presses into the inner thigh or calf of the standing leg.\n\nThe core engages gently to maintain upright posture, while the spinal extensors lengthen the spine upward. The shoulders relax downward as the arms extend overhead or remain at the heart center.", "instructions": ["Begin standing in Mountain Pose.", "Shift your weight into one foot and root firmly through the sole of the standing foot.", "Lift the opposite foot and place it against the inner ankle, calf, or inner thigh of the standing leg. Avoid placing the foot directly on the knee joint.", "Press the lifted foot and standing leg gently toward one another to create stability.", "Bring the hands to prayer position at the heart or extend the arms overhead.", "Lengthen through the spine and soften the shoulders while maintaining steady balance.", "Hold the pose while breathing smoothly, then gently release and repeat on the opposite side."], "benefits": "Tree Pose improves balance, coordination, and concentration.\n\nIt strengthens the legs, ankles, and core muscles while encouraging upright posture.\n\nEnergetically, the pose supports grounding and heart-centered awareness, helping cultivate inner steadiness and calm focus.", "teaching_cues": ["Root through the standing foot like the roots of a tree.", "Lift tall through the crown of the head.", "Draw the inner thigh and foot together for stability.", "Relax the shoulders away from the ears.", "Bring palms together at the heart or extend arms overhead."], "breath_cues": ["Inhale to lengthen through the spine.", "Exhale to root deeper through the standing foot.", "Maintain smooth, steady breathing throughout the posture."], "contraindications": "Avoid placing the lifted foot directly against the knee joint.\nUse caution if experiencing ankle, knee, or hip injuries.\nPractice near a wall or chair if balance is limited.", "modifications": ["Place the lifted foot on the ankle or calf instead of the thigh.", "Use a wall or chair for support.", "Keep hands at the heart instead of raising them overhead."], "advanced_variations": ["Close the eyes to increase the balance challenge.", "Extend arms overhead and interlace fingers.", "Transition into Half Lotus Tree Pose."], "affirmation": "I am steady, rooted, and open."}, {"name": "Child’s Pose", "sanskrit_name": "Balasana", "pronunciation": "bah-LAHS-uh-nuh", "category": "Restorative", "difficulty_level": "Beginner", "image_url": null, "alternate_names": ["Extended Child's Pose", "Resting Child's Pose"], "primary_movement": "Spinal Movement", "yoga_styles": ["Hatha Yoga", "Vinyasa Yoga", "Yin Yoga", "Restorative Yoga", "Chair Yoga", "Prenatal Yoga"], "chakras": ["Root Chakra"], "benefit_tags": ["Relaxation", "Stress Relief", "Hip Opening", "Spine Lengthening", "Nervous System Calming"], "body_focus": ["Hips", "Lower Back", "Spine", "Shoulders", "Knees"], "muscle_groups": ["Glutes", "Hip Flexors", "Spinal Erectors", "Latissimus Dorsi"], "movement_actions": ["Spinal Flexion", "Hip Flexion", "Shoulder Flexion", "Knee Flexion", "Grounding"], "short_description": "Child's Pose (Balasana) is a gentle resting posture that stretches the back body, relaxes the hips, and calms the nervous system. Often used as a pause between more active poses, it allows the body to release tension while encouraging slow, steady breathing.", "anatomy_breakdown": "Child's Pose places the body in a position of gentle spinal flexion. The hips move into deep flexion while the knees bend and the torso folds forward over the thighs. The spine lengthens as the back muscles soften, allowing the erector spinae to release tension.\n\nThe hips and gluteal muscles relax as the pelvis settles toward the heels. When the arms extend forward, the shoulders move into flexion, creating a mild stretch across the latissimus dorsi and upper back.\n\nBreathing in this position expands the back ribs and lower lungs, promoting parasympathetic nervous system activation and deep relaxation.", "instructions": ["Begin kneeling with the big toes touching and knees together or slightly apart.", "Sit the hips back toward the heels while folding the torso forward.", "Allow the forehead to rest on the mat or a prop.", "Extend the arms forward with palms down, or rest them alongside the legs.", "Keep the neck relaxed and shoulders soft.", "Breathe slowly and evenly while allowing the back body to expand with each inhale."], "benefits": "Child's Pose gently stretches the spine, hips, and ankles while encouraging deep relaxation. The posture calms the nervous system and helps release tension in the back body.\n\nIt promotes mindful breathing by expanding the back ribs and diaphragm. The pose can relieve fatigue, reduce stress, and create a sense of grounding and safety in the body.\n\nBecause of its restful nature, Child's Pose is frequently used between stronger poses to restore energy and regulate breath.", "teaching_cues": ["Sit hips back toward heels", "Fold torso gently over thighs", "Extend arms forward or rest alongside legs", "Relax forehead toward mat", "Breathe deeply into the back ribs"], "breath_cues": ["Inhale to expand the back ribs and lengthen the spine.", "Exhale to soften the torso and release the hips toward the heels."], "contraindications": "Avoid or modify the pose if experiencing knee injuries or significant knee discomfort.\nStudents with ankle sensitivity may place a folded blanket under the ankles.\nDuring pregnancy, widen the knees significantly to create space for the abdomen.", "modifications": ["Place a bolster or stacked blankets under the torso for support.", "Use a block or folded blanket under the forehead.", "Keep the knees wide for additional comfort in the hips.", "Place a rolled blanket behind the knees if there is knee sensitivity."], "advanced_variations": ["Extended Child's Pose with arms actively reaching forward", "Side Stretch Child's Pose (arms walking to one side)", "Thread the Needle variation from Child's Pose"], "affirmation": "I release and surrender into calm."}, {"name": "Warrior II", "sanskrit_name": "Virabhadrasana II", "pronunciation": "veer-ah-bah-DRAHS-ah-nah two", "category": "Standing", "difficulty_level": "Beginner–Intermediate", "image_url": null, "alternate_names": ["Warrior Pose II"], "primary_movement": "Hip Abduction", "yoga_styles": ["Hatha Yoga", "Vinyasa Yoga", "Power Yoga", "Ashtanga Yoga", "Slow Flow Yoga"], "chakras": ["Solar Plexus Chakra"], "benefit_tags": ["Strength", "Balance", "Focus", "Vitality", "Leg Strength", "Posture Improvement", "Hip Opening", "Stability", "Endurance"], "body_focus": ["Legs", "Hips", "Core", "Spine", "Shoulders"], "muscle_groups": ["Quadriceps", "Glutes", "Abdominals", "Deltoids", "Inner Thighs", "Core Stabilizers", "Spinal Erectors"], "movement_actions": ["Hip Abduction", "Shoulder Abduction", "Core Stabilization", "Leg Weight Bearing", "Knee Flexion", "Hip External Rotation", "Postural Alignment"], "short_description": "Warrior II (Virabhadrasana II) is a powerful standing pose that builds strength and endurance in the legs while opening the hips and chest. The pose cultivates stability, focus, and grounded energy through a strong foundation.", "anatomy_breakdown": "Warrior II develops strong engagement through the legs and hips while maintaining a stable and upright torso. The front leg bends deeply, activating the quadriceps and glutes, while the back leg remains straight and grounded.\n\nThe hips externally rotate and open toward the side of the mat. The inner thighs and hip stabilizers work to maintain alignment. The arms extend outward from the shoulders, engaging the deltoids while the spine remains upright and supported by the core.\n\nThe posture emphasizes grounded strength and balance between stability and openness.", "instructions": ["Stand with the feet wide apart.", "Turn the front foot forward and rotate the back foot slightly inward.", "Bend the front knee until it stacks over the ankle.", "Extend both arms out to the sides at shoulder height.", "Keep the torso upright and centered over the hips.", "Gaze steadily over the front fingertips.", "Keep the torso upright and gaze over the front hand.", "Press firmly through both feet while maintaining steady breathing."], "benefits": "Warrior II strengthens the legs, hips, and core while building endurance and stability. The pose encourages grounding through the feet while promoting openness across the hips and chest.\n\nPracticing this posture helps develop concentration and resilience, supporting both physical strength and mental focus.", "teaching_cues": ["Step the feet wide apart", "Turn the front foot forward and back foot slightly inward", "Bend the front knee over the ankle", "Extend the arms out to the sides at shoulder height", "Gaze over the front fingertips"], "breath_cues": ["Inhale to lengthen the spine and broaden the chest.", "Exhale to ground through the feet and stabilize the stance."], "contraindications": "Students with knee injuries should avoid bending the front knee too deeply. Those with hip or balance challenges may shorten the stance or practice near a wall for support.", "modifications": ["Shorten the stance for greater stability.", "Rest hands on hips if shoulder fatigue occurs.", "Practice with the back heel against a wall for support."], "advanced_variations": ["Reverse Warrior", "Extended Side Angle Pose", "Bound Warrior II"], "affirmation": "I remain grounded and steady while expanding with strength."}, {"name": "Triangle Pose", "sanskrit_name": "Trikonasana", "pronunciation": "tree-koh-NAH-sah-nah", "category": "Standing", "difficulty_level": "Beginner–Intermediate", "image_url": null, "alternate_names": ["Extended Triangle Pose"], "primary_movement": "Spinal Lateral Flexion", "yoga_styles": ["Hatha Yoga", "Vinyasa Yoga", "Iyengar Yoga", "Power Yoga", "Ashtanga Yoga", "Slow Flow Yoga"], "chakras": ["Heart Chakra"], "benefit_tags": ["Flexibility", "Balance", "Focus", "Spinal Mobility", "Hip Opening", "Posture Improvement", "Chest Opening"], "body_focus": ["Legs", "Hips", "Spine", "Shoulders", "Chest"], "muscle_groups": ["Hamstrings", "Quadriceps", "Glutes", "Obliques", "Deltoids", "Spinal Erectors", "Hip Adductors"], "movement_actions": ["Hip Abduction", "Spinal Lateral Flexion", "Shoulder Abduction", "Leg Weight Bearing", "Hip External Rotation", "Postural Alignment"], "short_description": "Triangle Pose (Trikonasana) is a foundational standing pose that stretches the legs and hips while lengthening the spine and opening the chest. The posture develops balance, stability, and flexibility through a strong and grounded stance.", "anatomy_breakdown": "Triangle Pose lengthens the sides of the torso while creating a strong base through the legs. The front leg remains straight as the hips hinge and the torso moves into lateral flexion.\n\nThe hamstrings and inner thighs lengthen while the glutes and quadriceps stabilize the legs. The spine extends laterally as the chest rotates open toward the ceiling.\n\nThe shoulders stack vertically, encouraging expansion across the collarbones and engagement of the upper back muscles.", "instructions": ["Stand with the feet wide apart.", "Turn the front foot forward and the back foot slightly inward.", "Extend both arms out at shoulder height.", "Reach forward through the front arm while hinging at the hip.", "Lower the front hand to the shin, ankle, block, or floor.", "Extend the top arm upward and rotate the chest open."], "benefits": "Triangle Pose stretches the hamstrings, hips, and spine while strengthening the legs and core. The posture improves balance and posture awareness while promoting openness across the chest and shoulders.\n\nRegular practice of Triangle Pose supports flexibility and stability, helping to develop both mobility and strength in the lower body.", "teaching_cues": ["Step the feet wide apart", "Turn the front foot forward and back foot slightly inward", "Extend the arms out to the sides", "Reach forward through the front arm", "Lower the hand to the shin, block, or floor", "Rotate the chest open and extend the top arm upward"], "breath_cues": ["Inhale to lengthen the spine and broaden the chest.", "Exhale to deepen into the lateral stretch."], "contraindications": "Students with hamstring or lower back injuries should avoid forcing the depth of the stretch. Those with neck sensitivity may keep the gaze forward instead of upward.", "modifications": ["Place the lower hand on a yoga block.", "Keep the top hand on the hip instead of reaching upward.", "Practice with the back body against a wall for alignment."], "advanced_variations": ["Bound Triangle Pose", "Revolved Triangle Pose", "Triangle with overhead arm extension"], "affirmation": "I create space and openness in my body with strength and stability."}, {"name": "Pigeon Pose", "sanskrit_name": "Kapotasana", "pronunciation": "kah-poh-TAH-sah-nah", "category": "Hip Opener", "difficulty_level": "Intermediate", "image_url": null, "alternate_names": ["Sleeping Pigeon (variation); One-Legged Pigeon Pose"], "primary_movement": "Hip External Rotation", "yoga_styles": ["Hatha Yoga", "Vinyasa Yoga", "Yin Yoga", "Restorative Yoga", "Slow Flow Yoga"], "chakras": ["Sacral Chakra"], "benefit_tags": ["Hip Opening", "Flexibility", "Stress Relief", "Spinal Mobility", "Relaxation", "Emotional Release"], "body_focus": ["Hips", "Glutes", "Legs", "Spine", "Lower Back"], "muscle_groups": ["Glutes", "Hip Rotators", "Hip Flexors", "Hamstrings", "Piriformis"], "movement_actions": ["Hip External Rotation", "Hip Extension", "Spinal Flexion", "Postural Alignment", "Grounding"], "short_description": "Pigeon Pose is a deep hip-opening posture that stretches the glutes and hip rotators while promoting relaxation and release. It is commonly used in cool-down sequences and restorative practices.", "anatomy_breakdown": "Pigeon Pose creates deep external rotation in the front hip while extending the back leg behind. The glutes and hip rotators of the front leg lengthen, while the hip flexors of the back leg stretch.\n\nThe pelvis moves toward the floor, supported by props if needed. The spine can remain upright or fold forward, increasing intensity in the hips.\n\nThe pose targets deep connective tissues and is often associated with both physical and emotional release.", "instructions": ["From Downward Dog, bring one knee forward toward the wrist.", "Extend the back leg straight behind you.", "Square the hips toward the front of the mat.", "Lower the hips toward the floor or support them with a block.", "Stay upright or fold forward over the front leg."], "benefits": "Pigeon Pose deeply stretches the hips and glutes while improving flexibility and mobility. It helps release tension stored in the hips and can promote relaxation.\n\nThe pose is also effective for counteracting tightness from sitting and can support emotional release.", "teaching_cues": ["From Downward Dog, bring one knee forward toward the wrist", "Extend the back leg straight behind", "Square the hips toward the front", "Lower the hips toward the floor", "Stay upright or fold forward over the front leg"], "breath_cues": ["Inhale to lengthen the spine.", "Exhale to soften and release into the hips."], "contraindications": "Students with knee injuries should avoid this pose or modify heavily. Those with hip or lower back discomfort should use props and avoid forcing the stretch.", "modifications": ["Place a block or blanket under the front hip.", "Keep the torso upright.", "Use a bolster under the chest in forward fold."], "advanced_variations": ["King Pigeon Pose", "Pigeon with backbend", "Deep forward fold variation"], "affirmation": "I release tension and create space within."}];
-let POSES=[], fav=new Set();
-const F={search:"",category:"",difficulty:"",body:"",style:""};
-const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const SUPABASE_URL="https://nxjbpgnpblqepathojzr.supabase.co";
+const ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54amJwZ25wYmxxZXBhdGhvanpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTE3MTYsImV4cCI6MjA5MDA2NzcxNn0.0thRMnySyacG_fcFiHlteEk4scwfWrP6HmjSlBdg3Ik";
+const sb=supabase.createClient(SUPABASE_URL,ANON);
+const $=id=>document.getElementById(id);
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const arr=v=>Array.isArray(v)?v:[];
-const paras=t=>(t||"").split(/\n{2,}/).map(s=>s.trim()).filter(Boolean);
-const badgeColor=d=>/Advanced/.test(d)&&!/Intermediate–/.test(d)?["#FBE6DF","#C44E37"]:/Intermediate/.test(d)?["#F7EFD9","#B98A1F"]:["#E5F0EC","#2E7D6B"];
 
-async function load(){
-  try{
-    const r=await fetch(`${SB}/rest/v1/poses?select=*&status=eq.published&order=canonical_pose_id`,{headers:{apikey:KEY,Authorization:"Bearer "+KEY}});
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    POSES=await r.json();
-    document.getElementById("state").style.display="none";
-    buildFilters(); render();
-  }catch(e){
-    POSES=SAMPLE;
-    document.getElementById("state").innerHTML="<b>Preview mode</b> — showing "+SAMPLE.length+" sample poses. Deployed to a real URL, this loads your full live library of 50.";
-    document.getElementById("state").style.display="block";
-    buildFilters(); render();
-  }
+let SESSION=null, POSES=[], catFilter="", items=[], currentId=null;
+
+/* AUTH */
+async function init(){const{data:{session}}=await sb.auth.getSession();if(session)showApp(session);else $("login").classList.remove("hidden");}
+async function showApp(s){SESSION=s;$("login").classList.add("hidden");$("app").classList.remove("hidden");$("whoami").textContent=s.user.email;await loadPoses();renderCanvas();}
+$("signin").onclick=async()=>{
+  $("loginErr").classList.add("hidden");
+  const email=$("email").value.trim(),password=$("password").value;if(!email||!password)return;
+  $("signin").disabled=true;$("signin").textContent="Signing in…";
+  const{data,error}=await sb.auth.signInWithPassword({email,password});
+  $("signin").disabled=false;$("signin").textContent="Sign in";
+  if(error){$("loginErr").textContent=error.message;$("loginErr").classList.remove("hidden");return;}
+  showApp(data.session);
+};
+$("password").addEventListener("keydown",e=>{if(e.key==="Enter")$("signin").click();});
+$("signout").onclick=async()=>{await sb.auth.signOut();location.reload();};
+
+/* POSES (picker) */
+async function loadPoses(){
+  const{data,error}=await sb.from("poses").select("id,name,sanskrit_name,emoji,image_url,category,difficulty_level,teaching_cues,short_description").order("canonical_pose_id");
+  if(error){$("plist").innerHTML='<div style="color:#A03A22;padding:8px">'+esc(error.message)+'</div>';return;}
+  POSES=data||[];
+  const cats=[...new Set(POSES.map(p=>p.category).filter(Boolean))].sort();
+  $("cats").innerHTML=`<span class="cat ${catFilter===""?"on":""}" data-c="">All</span>`+cats.map(c=>`<span class="cat ${catFilter===c?"on":""}" data-c="${esc(c)}">${esc(c)}</span>`).join("");
+  $("cats").querySelectorAll(".cat").forEach(el=>el.onclick=()=>{catFilter=el.dataset.c;loadPoses();renderPicker();});
+  renderPicker();
 }
-function uniq(getter){const m=new Map();POSES.forEach(p=>{const v=getter(p);(Array.isArray(v)?v:[v]).filter(Boolean).forEach(x=>m.set(x,(m.get(x)||0)+1));});return [...m.entries()].sort((a,b)=>a[0].localeCompare(b[0]));}
-function buildFilters(){
-  const rows=[
-    ["Category","category",uniq(p=>p.category)],
-    ["Difficulty","difficulty",uniq(p=>p.difficulty_level)],
-    ["Body Focus","body",uniq(p=>p.body_focus)],
-    ["Yoga Style","style",uniq(p=>p.yoga_styles)],
-  ];
-  document.getElementById("filters").innerHTML=rows.map(([label,key,vals])=>`
-    <div class="frow"><div class="flabel">${label}</div><div class="chips">
-      <span class="chip ${F[key]===""?"on":""}" data-k="${key}" data-v="">All</span>
-      ${vals.map(([v,c])=>`<span class="chip ${F[key]===v?"on":""}" data-k="${key}" data-v="${esc(v)}">${esc(v)} (${c})</span>`).join("")}
-    </div></div>`).join("");
-  document.querySelectorAll(".chip").forEach(el=>el.onclick=()=>{F[el.dataset.k]=el.dataset.v;buildFilters();render();});
+function renderPicker(){
+  const q=($("psearch").value||"").toLowerCase();
+  const list=POSES.filter(p=>(!catFilter||p.category===catFilter)&&(!q||(p.name||"").toLowerCase().includes(q)||(p.sanskrit_name||"").toLowerCase().includes(q)));
+  $("plist").innerHTML=list.map(p=>{
+    const cue=arr(p.teaching_cues)[0]||p.short_description||"";
+    const thumb=p.image_url?`<img src="${esc(p.image_url)}">`:(p.emoji||"🧘");
+    const lv=p.difficulty_level?`<span class="lv">${esc(p.difficulty_level.slice(0,3))}</span>`:"";
+    return `<div class="pitem" data-id="${p.id}"><div class="pth">${thumb}</div>
+      <div style="flex:1;min-width:0"><div class="pn">${esc(p.name)}${lv}</div>
+      <div class="ps">${esc(p.sanskrit_name||"")}</div><div class="pc">${esc(cue)}</div></div></div>`;
+  }).join("")||'<div style="color:var(--muted);padding:8px">No poses match.</div>';
+  $("plist").querySelectorAll(".pitem").forEach(el=>el.onclick=()=>addPose(el.dataset.id));
 }
-function match(p){
-  if(F.category&&p.category!==F.category)return false;
-  if(F.difficulty&&p.difficulty_level!==F.difficulty)return false;
-  if(F.body&&!arr(p.body_focus).includes(F.body))return false;
-  if(F.style&&!arr(p.yoga_styles).includes(F.style))return false;
-  if(F.search){const q=F.search.toLowerCase();if(!((p.name||"").toLowerCase().includes(q)||(p.sanskrit_name||"").toLowerCase().includes(q)))return false;}
-  return true;
-}
-function render(){
-  const list=POSES.filter(match);
-  document.getElementById("count").textContent=`${list.length} pose${list.length===1?"":"s"}`;
-  document.getElementById("grid").innerHTML=list.map((p,i)=>{
-    const idx=POSES.indexOf(p);const [bg,fg]=badgeColor(p.difficulty_level||"");
-    const thumb=p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}">`:(p.emoji||"🧘");
-    return `<div class="card" data-i="${idx}">
-      <div class="heart ${fav.has(idx)?"on":""}" data-fav="${idx}">♥</div>
-      <div class="thumb">${thumb}</div>
-      <div class="cbody">
-        <div class="cname">${esc(p.name)}</div>
-        <div class="csans">${esc(p.sanskrit_name||"")}</div>
-        <div class="crow"><span>${esc(p.category||"")}</span>
-          ${p.difficulty_level?`<span class="badge" style="background:${bg};color:${fg}">${esc(p.difficulty_level)}</span>`:""}</div>
-      </div></div>`;
+$("psearch").addEventListener("input",renderPicker);
+
+/* CANVAS */
+function addPose(id){const p=POSES.find(x=>String(x.id)===String(id));if(!p)return;items.push({kind:"pose",pose:p,notes:"",breaths:""});renderCanvas();}
+$("b_section").onclick=()=>{items.push({kind:"section",title:"New section"});renderCanvas();};
+function renderCanvas(){
+  const c=$("canvas");
+  if(!items.length){c.innerHTML=`<div class="empty"><div class="fl">🌸</div><h4>Begin Your Sequence</h4><div>Click any pose in the panel to build your flow</div></div>`;return;}
+  let pn=0;
+  c.innerHTML=items.map((it,i)=>{
+    if(it.kind==="section")
+      return `<div class="section" data-i="${i}"><span class="handle" draggable="true">⠿</span>
+        <input value="${esc(it.title)}" oninput="setItem(${i},'title',this.value)"/><button class="rm" onclick="removeItem(${i})">✕</button></div>`;
+    pn++;const p=it.pose;const thumb=p.image_url?`<img src="${esc(p.image_url)}">`:(p.emoji||"🧘");
+    return `<div class="item" data-i="${i}">
+      <span class="handle" draggable="true">⠿</span><span class="pos">${pn}</span>
+      <div class="ith">${thumb}</div>
+      <div class="ibody"><div class="iname">${esc(p.name)}</div><div class="isan">${esc(p.sanskrit_name||"")}</div>
+        <div class="iopts">
+          <input class="notes" placeholder="Cue / note for this pose…" value="${esc(it.notes)}" oninput="setItem(${i},'notes',this.value)"/>
+          <input class="br" type="number" min="1" placeholder="breaths" value="${esc(it.breaths)}" oninput="setItem(${i},'breaths',this.value)"/>
+        </div></div>
+      <button class="rm" onclick="removeItem(${i})">✕</button></div>`;
   }).join("");
-  document.querySelectorAll(".card").forEach(el=>el.onclick=e=>{if(e.target.dataset.fav!==undefined)return;openDetail(POSES[+el.dataset.i]);});
-  document.querySelectorAll(".heart").forEach(el=>el.onclick=e=>{e.stopPropagation();const i=+el.dataset.fav;fav.has(i)?fav.delete(i):fav.add(i);render();});
+  wireDrag();
 }
-function chips(items,sage){return arr(items).length?`<div class="tags">${arr(items).map(x=>`<span class="tag ${sage?"sage":""}">${esc(x)}</span>`).join("")}</div>`:'<span style="color:var(--taupe)">—</span>';}
-function bullets(items){return arr(items).length?`<ul class="clean">${arr(items).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:"";}
-function steps(items){return arr(items).length?`<ol class="steps">${arr(items).map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:"";}
-function sec(title,html,full){return `<div class="sec ${full?"full":""}"><h3>${title}</h3>${html}</div>`;}
-function openDetail(p){
-  const fig=p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}">`:(p.emoji||"🧘");
-  const facts=[["Category",p.category],["Difficulty",p.difficulty_level],["Primary Movement",p.primary_movement]].filter(f=>f[1]);
-  const html=`<div class="overlay" id="ov"><div class="modal" onclick="event.stopPropagation()">
-    <div class="mtop"><button class="close" onclick="closeModal()">Close</button></div>
-    <div class="mbody">
-      <div class="mhead">
-        <h1 class="mtitle">${esc(p.name)}</h1>
-        <div class="msans">${esc(p.sanskrit_name||"")}</div>
-        <div class="mpron">${esc(p.pronunciation||"")}</div>
-        ${arr(p.alternate_names).length?`<div class="malt">Also known as: ${arr(p.alternate_names).map(esc).join(" · ")}</div>`:""}
-      </div>
-      <div class="facts">${facts.map(f=>`<div class="fact"><div class="l">${esc(f[0])}</div><div class="v">${esc(f[1])}</div></div>`).join("")}</div>
-      <div class="intro"><p>${esc(p.short_description||"")}</p><div class="fig">${fig}</div></div>
-      <div class="rule"></div>
-      ${p.anatomy_breakdown?sec("Anatomy Breakdown",paras(p.anatomy_breakdown).map(x=>`<p>${esc(x)}</p>`).join(""),true):""}
-      <div class="secgrid" style="margin-top:24px">
-        ${arr(p.instructions).length?sec("Alignment Breakdown",steps(p.instructions)):""}
-        ${p.benefits?sec("Benefits",paras(p.benefits).map(x=>`<p>${esc(x)}</p>`).join("")):""}
-        ${arr(p.yoga_styles).length?sec("Commonly used in these styles",chips(p.yoga_styles,true),true):""}
-        ${arr(p.teaching_cues).length?sec("Teaching Cue",bullets(p.teaching_cues)):""}
-        ${arr(p.breath_cues).length?sec("Breath Cue",bullets(p.breath_cues)):""}
-        ${p.contraindications?sec("Contraindication",bullets((p.contraindications||"").split(/\n+/).filter(Boolean))):""}
-        ${arr(p.modifications).length?sec("Modifications",bullets(p.modifications)):""}
-        ${p.difficulty_level?sec("Difficulty Level",`<span style="color:var(--sage);font-weight:500">${esc(p.difficulty_level)}</span>`):""}
-        ${arr(p.chakras).length?sec("Chakra",chips(p.chakras)):""}
-        ${arr(p.body_focus).length?sec("Body Areas",chips(p.body_focus)):""}
-        ${arr(p.muscle_groups).length?sec("Muscle Groups",chips(p.muscle_groups,true)):""}
-        ${arr(p.movement_actions).length?sec("Movement Actions",chips(p.movement_actions)):""}
-        ${arr(p.benefit_tags).length?sec("Focus & Benefits",chips(p.benefit_tags)):""}
-      </div>
-      ${p.affirmation?`<div class="affirm"><div class="l">Affirmation</div><div class="q">“${esc(p.affirmation)}”</div></div>`:""}
-      ${arr(p.advanced_variations).length?`<div class="vary"><h2>Pose Variations</h2><div class="vchips">${arr(p.advanced_variations).map(v=>`<span class="vchip">${esc(v)}</span>`).join("")}</div></div>`:""}
-    </div></div></div>`;
-  const root=document.getElementById("modalRoot");
-  root.innerHTML=html;
-  document.getElementById("ov").onclick=closeModal;
-  document.body.style.overflow="hidden";
+function removeItem(i){items.splice(i,1);renderCanvas();}
+function wireDrag(){
+  let from=null;
+  document.querySelectorAll("#canvas .item, #canvas .section").forEach(row=>{
+    const h=row.querySelector(".handle");
+    h.ondragstart=e=>{from=+row.dataset.i;row.classList.add("drag");e.dataTransfer.effectAllowed="move";};
+    h.ondragend=()=>row.classList.remove("drag");
+    row.ondragover=e=>{e.preventDefault();row.classList.add("over");};
+    row.ondragleave=()=>row.classList.remove("over");
+    row.ondrop=e=>{e.preventDefault();row.classList.remove("over");const to=+row.dataset.i;if(from===null||from===to)return;const[m]=items.splice(from,1);items.splice(to,0,m);from=null;renderCanvas();};
+  });
 }
-function closeModal(){document.getElementById("modalRoot").innerHTML="";document.body.style.overflow="";}
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal();});
-document.getElementById("search").addEventListener("input",e=>{F.search=e.target.value;render();});
-load();
+
+/* SAVE / LOAD */
+function tagsArr(){return ($("m_tags").value||"").split(",").map(s=>s.trim()).filter(Boolean);}
+$("b_save").onclick=async()=>{
+  const name=$("m_name").value.trim();
+  if(!name)return toast("Give your sequence a name first.");
+  if(!items.length)return toast("Add at least one pose.");
+  const row={name,level:$("m_level").value.trim()||null,style:$("m_style").value.trim()||null,
+    duration_label:$("m_duration").value.trim()||null,description:$("m_description").value.trim()||null,
+    playlist_url:$("m_playlist").value.trim()||null,tags:tagsArr(),
+    visibility:$("m_share").checked?"community":"private",owner_id:SESSION.user.id};
+  if(currentId)row.id=currentId;
+  const{data,error}=await sb.from("sequences").upsert(row).select("id").single();
+  if(error)return toast("Save failed: "+error.message);
+  currentId=data.id;
+  await sb.from("sequence_items").delete().eq("sequence_id",currentId);
+  const rows=items.map((it,i)=>({sequence_id:currentId,position:i,item_type:it.kind,
+    pose_id:it.kind==="pose"?it.pose.id:null,
+    custom_name:it.kind==="section"?it.title:it.pose.name,
+    custom_sanskrit:it.kind==="pose"?it.pose.sanskrit_name:null,
+    notes:it.notes||null,custom_breaths:it.kind==="pose"&&it.breaths?parseInt(it.breaths):null,
+    emoji:it.kind==="pose"?it.pose.emoji:null,level:it.kind==="pose"?it.pose.difficulty_level:null}));
+  if(rows.length){const r=await sb.from("sequence_items").insert(rows);if(r.error)return toast("Saved sequence, but poses failed: "+r.error.message);}
+  toast("Saved ✓");
+};
+$("b_new").onclick=()=>{if(items.length&&!confirm("Start a new sequence? Unsaved changes will be lost."))return;reset();};
+$("b_clear").onclick=()=>{if(items.length&&!confirm("Clear all poses from this sequence?"))return;items=[];renderCanvas();};
+function reset(){currentId=null;items=[];["m_name","m_description","m_playlist","m_level","m_duration","m_style","m_tags"].forEach(k=>$(k).value="");$("m_share").checked=false;renderCanvas();}
+$("b_print").onclick=()=>window.print();
+
+$("b_load").onclick=async()=>{
+  const{data,error}=await sb.from("sequences").select("*").eq("owner_id",SESSION.user.id).order("updated_at",{ascending:false});
+  if(error)return toast(error.message);
+  const rows=(data||[]).map(s=>`<div class="savedrow" data-id="${s.id}">
+    <div style="flex:1"><div style="font-weight:500;color:var(--head)">${esc(s.name)}</div>
+    <div style="color:var(--muted);font-size:12px">${esc(s.level||"")} ${esc(s.duration_label||"")} · ${s.visibility}</div></div>
+    <span style="color:var(--muted);font-size:11px">${new Date(s.updated_at).toLocaleDateString()}</span></div>`).join("")
+    ||'<div style="color:var(--muted)">No saved sequences yet.</div>';
+  $("modalRoot").innerHTML=`<div class="ovl" id="ovl"><div class="modal" onclick="event.stopPropagation()">
+    <h3 class="serif">Load a sequence</h3>${rows}
+    <button class="btn ghost" style="margin-top:14px;width:100%" onclick="closeModal()">Cancel</button></div></div>`;
+  $("ovl").onclick=closeModal;
+  $("modalRoot").querySelectorAll(".savedrow").forEach(el=>el.onclick=()=>loadSeq(el.dataset.id));
+};
+function closeModal(){$("modalRoot").innerHTML="";}
+async function loadSeq(id){
+  const{data:s}=await sb.from("sequences").select("*").eq("id",id).single();
+  const{data:its}=await sb.from("sequence_items").select("*").eq("sequence_id",id).order("position");
+  currentId=id;
+  $("m_name").value=s.name||"";$("m_description").value=s.description||"";$("m_playlist").value=s.playlist_url||"";
+  $("m_level").value=s.level||"";$("m_duration").value=s.duration_label||"";$("m_style").value=s.style||"";
+  $("m_tags").value=arr(s.tags).join(", ");$("m_share").checked=s.visibility==="community";
+  items=(its||[]).map(it=>{
+    if(it.item_type==="section")return{kind:"section",title:it.custom_name||"Section"};
+    const p=POSES.find(x=>String(x.id)===String(it.pose_id))||{id:it.pose_id,name:it.custom_name,sanskrit_name:it.custom_sanskrit,emoji:it.emoji};
+    return{kind:"pose",pose:p,notes:it.notes||"",breaths:it.custom_breaths||""};
+  });
+  closeModal();renderCanvas();toast("Loaded “"+(s.name||"")+"”");
+}
+
+/* misc */
+document.querySelectorAll(".btn.soon").forEach(b=>b.onclick=()=>toast(b.dataset.soon+" — coming in the next update."));
+let tt;function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),2400);}
+window.setItem=(i,f,v)=>{items[i][f]=v;};window.removeItem=removeItem;window.closeModal=closeModal;
+sb.auth.onAuthStateChange((_e,s)=>{if(!s){$("app").classList.add("hidden");$("login").classList.remove("hidden");}});
+init();
 </script>
 </body>
 </html>
