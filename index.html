@@ -153,8 +153,9 @@
     .layout{display:block;padding:0}
     .build{border:none;padding:0}
     .item,.section{break-inside:avoid}
+  }
 
-    /* ===== PPY site header ===== */
+  /* ===== PPY site header ===== */
 .ppy-header{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(10px);border-bottom:1px solid var(--ppy-line,#EFE6E8)}
 .ppy-bar{max-width:1200px;margin:0 auto;padding:11px 22px;display:flex;align-items:center;gap:16px}
 .ppy-brand{display:flex;align-items:center;gap:9px;text-decoration:none;flex:0 0 auto}
@@ -183,12 +184,11 @@
 .ppy-mobile a.admin{color:var(--ppy-accentDk,#A87C83)}
 @media (max-width:820px){.ppy-nav{display:none}.ppy-right .hide-sm{display:none}.ppy-burger{display:inline-flex}.ppy-mobile.open{display:block}}
 /* ===== end header ===== */
-  }
+.ppy-header{position:static}
 </style>
 </head>
 <body>
-
-  <header class="ppy-header" id="ppyHeader">
+<header class="ppy-header" id="ppyHeader">
   <div class="ppy-bar">
     <a class="ppy-brand" id="ppyBrand" href="https://ppyoga-app.vercel.app">
       <svg class="mark" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
@@ -204,11 +204,15 @@
     <nav class="ppy-nav" id="ppyNav">
       <a href="https://ppyoga-app.vercel.app">Pose Library</a>
       <a href="https://ppyoga-builder.vercel.app">Sequence Builder</a>
+      <a data-nav="classes" hidden href="https://ppyoga-app.vercel.app/classes">Classes</a>
+      <a data-nav="challenges" hidden href="https://ppyoga-app.vercel.app/challenges">Challenges</a>
       <a href="https://purepassionyoga.com/shop">Shop</a>
       <a href="https://purepassionyoga.com/about">About</a>
     </nav>
     <div class="ppy-right" id="ppyRight">
-      <a class="ppy-btn primary" href="https://ppyoga-profile.vercel.app">Sign in</a>
+      <span class="ppy-tier" id="ppyTier" hidden></span>
+      <a class="ppy-btn admin" id="ppyAdmin" hidden href="https://ppyoga-admin.vercel.app">Admin</a>
+      <a class="ppy-btn primary" id="ppyAuth" href="https://ppyoga-profile.vercel.app">Sign in</a>
     </div>
     <button class="ppy-burger" id="ppyBurger" aria-label="Menu">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -217,12 +221,15 @@
   <div class="ppy-mobile" id="ppyMobile">
     <a href="https://ppyoga-app.vercel.app">Pose Library</a>
     <a href="https://ppyoga-builder.vercel.app">Sequence Builder</a>
+    <a data-nav="classes" hidden href="https://ppyoga-app.vercel.app/classes">Classes</a>
+    <a data-nav="challenges" hidden href="https://ppyoga-app.vercel.app/challenges">Challenges</a>
     <a href="https://purepassionyoga.com/shop">Shop</a>
     <a href="https://purepassionyoga.com/about">About</a>
-    <a class="up" href="https://ppyoga-profile.vercel.app">Sign in</a>
+    <a class="admin" id="ppyAdminM" hidden href="https://ppyoga-admin.vercel.app">Admin</a>
+    <a class="up" id="ppyAuthM" href="https://ppyoga-profile.vercel.app">Sign in</a>
   </div>
 </header>
-  
+
 <div id="login">
   <div class="lcard">
     <h1 class="serif">Pure Passion Yoga</h1>
@@ -650,6 +657,81 @@ function applyTheme(t){seqTheme=t||"classic";document.body.classList.remove("the
 function updatePrintHead(){const el=$("printHead");if(!el)return;const meta=[$("m_level").value,$("m_duration").value,$("m_style").value].filter(Boolean).join(" \u00b7 ");el.innerHTML=`<h1>${esc($("m_name").value||"My Yoga Sequence")}</h1><div class="meta">${esc(meta)}</div>`+($("m_description").value?`<div class="meta" style="margin-top:6px">${esc($("m_description").value)}</div>`:"");}
 window.openTemplates=openTemplates;window.saveAsTemplate=saveAsTemplate;window.loadTemplate=loadTemplate;window.openTheme=openTheme;
 loadDesign();init();
+</script>
+<script>
+/* ===== PPY adaptive header controller =====
+   Self-contained. No external deps. Safe on any PPY page.
+   Today (cross-origin): no same-origin session -> renders the logged-out shell.
+   Once pages share one domain: auto-upgrades to tier/admin-aware with zero re-bake.
+*/
+(function(){
+  var SB="https://nxjbpgnpblqepathojzr.supabase.co", KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im54amJwZ25wYmxxZXBhdGhvanpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTE3MTYsImV4cCI6MjA5MDA2NzcxNn0.0thRMnySyacG_fcFiHlteEk4scwfWrP6HmjSlBdg3Ik";
+  var $=function(id){return document.getElementById(id);};
+
+  // 1) Burger -> mobile menu
+  var burger=$("ppyBurger"), mob=$("ppyMobile");
+  if(burger&&mob) burger.addEventListener("click",function(){mob.classList.toggle("open");});
+
+  // 2) Active link by current location
+  try{
+    var norm=function(h,p){return h+(p||"/").replace(/\/index\.html$/,"/").replace(/\/+$/,"/");};
+    var here=norm(location.host, location.pathname);
+    document.querySelectorAll("#ppyNav a").forEach(function(a){
+      try{var u=new URL(a.href); if(norm(u.host,u.pathname)===here) a.classList.add("active");}catch(e){}
+    });
+  }catch(e){}
+
+  // 3) design + site config (one request): brand text, logo, Classes/Challenges reveal
+  fetch(SB+"/rest/v1/app_settings?select=key,value&key=in.(design,site)",
+        {headers:{apikey:KEY,Authorization:"Bearer "+KEY}})
+    .then(function(r){return r.ok?r.json():[];})
+    .then(function(rows){
+      var map={}; (rows||[]).forEach(function(x){map[x.key]=x.value||{};});
+      var d=map.design||{}, site=map.site||{};
+      if(d.app_name){ document.querySelectorAll(".ppy-brand .wm").forEach(function(e){e.textContent=d.app_name;}); }
+      if(d.logo_url){
+        document.querySelectorAll(".ppy-brand").forEach(function(b){
+          var mark=b.querySelector(".mark");
+          var img=document.createElement("img"); img.className="lg"; img.src=d.logo_url; img.alt=(d.app_name||"Pure Passion Yoga");
+          if(mark) b.replaceChild(img,mark);
+          var wm=b.querySelector(".wm"); if(wm) wm.style.display="none";
+        });
+      }
+      if(site.classes_enabled)    document.querySelectorAll("[data-nav='classes']").forEach(function(e){e.hidden=false;});
+      if(site.challenges_enabled) document.querySelectorAll("[data-nav='challenges']").forEach(function(e){e.hidden=false;});
+    }).catch(function(){});
+
+  // 4) Auth state from same-origin Supabase session (no SDK needed).
+  //    Cross-origin there is no token here, so this is a graceful no-op until same domain.
+  function readSession(){
+    try{
+      var raw=localStorage.getItem("sb-nxjbpgnpblqepathojzr-auth-token");
+      if(!raw) return null;
+      if(raw.indexOf("base64-")===0){ raw=decodeURIComponent(escape(atob(raw.slice(7)))); }
+      var s=JSON.parse(raw);
+      if(s && s.access_token && s.user && s.user.id) return s;
+    }catch(e){}
+    return null;
+  }
+  var sess=readSession();
+  if(!sess) return; // logged-out shell stands
+
+  // Logged in: flip to Account, fetch tier + admin
+  var auth=$("ppyAuth"), authM=$("ppyAuthM");
+  if(auth) auth.textContent="Account";
+  if(authM) authM.textContent="Account";
+  fetch(SB+"/rest/v1/profiles?select=tier,is_admin&id=eq."+encodeURIComponent(sess.user.id),
+        {headers:{apikey:KEY,Authorization:"Bearer "+sess.access_token}})
+    .then(function(r){return r.ok?r.json():[];})
+    .then(function(rows){
+      var p=(rows&&rows[0])||{};
+      if(p.tier){ var t=$("ppyTier"); if(t){ t.textContent=p.tier; t.hidden=false; } }
+      if(p.is_admin){
+        var a=$("ppyAdmin"); if(a) a.hidden=false;
+        var am=$("ppyAdminM"); if(am) am.hidden=false;
+      }
+    }).catch(function(){});
+})();
 </script>
 </body>
 </html>
