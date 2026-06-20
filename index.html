@@ -112,6 +112,19 @@
   .sc-br{color:var(--amber);font-size:11px;font-weight:600;min-height:15px}
   .sc-edit{margin-top:6px;background:#F6EFF4;color:var(--clayDk);border:none;border-radius:8px;padding:5px 0;font-size:12px;cursor:pointer}
   .sc-edit:hover{background:#EFE2EC}
+  .seqstats{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:2px 0 10px;padding:10px 14px;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px}
+  .seqstats.hidden{display:none}
+  .st-score{display:flex;align-items:baseline;gap:3px}
+  .st-num{font-family:var(--font-head);font-size:22px;font-weight:600;color:var(--rose)}
+  .st-of{font-size:12px;color:var(--muted)}
+  .st-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-left:4px}
+  .st-bar{display:flex;gap:2px;flex:1;min-width:120px;align-items:center}
+  .st-bar .seg{height:10px;flex:1;border-radius:2px;min-width:3px}
+  .st-right{display:flex;align-items:center;gap:10px;margin-left:auto}
+  .st-meta{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .st-fit{padding:6px 12px;font-size:12px}
+  .ie-select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field);font:inherit;font-size:13px;color:var(--ink);outline:none}
+  .ie-select:focus{border-color:var(--rose)}
 
   .flow{position:fixed;inset:0;background:linear-gradient(165deg,#fff,#F6EFF4);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px}
   .flow-exit{position:absolute;top:16px;right:20px;background:none;border:none;font-size:24px;color:var(--muted);cursor:pointer;line-height:1}
@@ -324,6 +337,7 @@
       </div>
       <label class="share"><input type="checkbox" id="m_share"/> Share with community when saving</label>
 
+      <div id="seqstats" class="seqstats hidden"></div>
       <div id="printHead" class="printhead"></div>
       <div id="canvas" class="canvas"></div>
       <div id="printFooter" class="printfoot"></div>
@@ -389,6 +403,38 @@ $("psearch").addEventListener("input",renderPicker);
 function addAt(index,id){const p=POSES.find(x=>String(x.id)===String(id));if(!p)return;items.splice(Math.max(0,Math.min(index,items.length)),0,{kind:"pose",pose:p,notes:"",breaths:5});renderCanvas();}
 function addPose(id){addAt(items.length,id);}
 $("b_section").onclick=()=>{items.push({kind:"section",title:"New section"});renderCanvas();};
+const BREATH_PATTERNS=['Natural','Inhale','Exhale','Inhale & Exhale','Hold','Box Breath'];
+const DIFF_SCORE={'Beginner':1,'Beginner-Intermediate':1.5,'Intermediate':2,'Intermediate-Advanced':2.5,'Advanced':3};
+function poseLevelScore(p){return (p&&DIFF_SCORE[p.difficulty_level])||1;}
+function levelColor(v){if(v<=1.25)return '#7fae7f';if(v<1.75)return '#a8ad91';if(v<2.25)return '#e0a23a';if(v<2.75)return '#d98a4a';return '#c46b6b';}
+function renderStats(){
+  const el=$("seqstats"); if(!el)return;
+  const poses=items.filter(it=>it.kind==="pose");
+  if(!poses.length){el.classList.add("hidden");el.innerHTML="";return;}
+  el.classList.remove("hidden");
+  const avg=poses.reduce((a,it)=>a+poseLevelScore(it.pose),0)/poses.length;
+  const score=Math.round((avg*10/3)*10)/10;
+  const breaths=poses.reduce((a,it)=>a+(parseInt(it.breaths)||5),0);
+  const mins=Math.round(breaths*6/60);
+  const segs=poses.map(it=>{const v=poseLevelScore(it.pose);return '<span class="seg" style="background:'+levelColor(v)+'" title="'+esc(it.pose.difficulty_level||"")+'"></span>';}).join("");
+  el.innerHTML='<div class="st-score"><span class="st-num">'+score.toFixed(1)+'</span><span class="st-of">/10</span><span class="st-lbl">difficulty</span></div>'
+    +'<div class="st-bar">'+segs+'</div>'
+    +'<div class="st-right"><span class="st-meta">'+poses.length+' poses \u00b7 ~'+mins+' min</span>'
+    +'<button class="btn ghost st-fit" id="b_autofit" title="Rescale breath holds to match the selected duration">\u27f3 Auto-fit time</button></div>';
+  const fit=$("b_autofit"); if(fit)fit.onclick=autoFitDuration;
+}
+function autoFitDuration(){
+  const poses=items.filter(it=>it.kind==="pose");
+  if(!poses.length)return toast("Add poses first");
+  const target=parseInt($("m_duration").value);
+  if(!target)return toast("Pick a target duration first");
+  const curSecs=poses.reduce((a,it)=>a+(parseInt(it.breaths)||5)*6,0);
+  if(!curSecs)return;
+  const ratio=(target*60)/curSecs;
+  items.forEach(it=>{if(it.kind==="pose")it.breaths=Math.max(1,Math.round((parseInt(it.breaths)||5)*ratio));});
+  renderCanvas();
+  toast("Adjusted to ~"+target+" min");
+}
 function renderCanvas(){
   const c=$("canvas");
   if(!items.length){c.innerHTML=`<div class="empty"><div class="fl">🌸</div><h4>Begin Your Sequence</h4><div>Click a pose, or drag one from the list, to build your flow</div></div>`;return;}
@@ -405,11 +451,12 @@ function renderCanvas(){
       <div class="sc-name">${esc(p.name)}</div>
       <div class="sc-san">${esc(p.sanskrit_name||"")}</div>
       <div class="sc-cue">${esc(it.notes||"")}</div>
-      <div class="sc-br">${it.breaths?esc(it.breaths)+" breaths":"&nbsp;"}</div>
+      <div class="sc-br">${[it.breaths?esc(it.breaths)+" breaths":"",(it.breath_pattern&&it.breath_pattern!=="Natural")?esc(it.breath_pattern):""].filter(Boolean).join(" \u00b7 ")||"&nbsp;"}</div>
       <button class="sc-edit" onclick="editItem(${i})">Edit</button>
     </div>`;
   }).join("")+`</div>`;
   wireCanvasDnD();
+  renderStats();
 }
 function removeItem(i){items.splice(i,1);renderCanvas();}
 function handleDrop(target){
@@ -434,13 +481,14 @@ function editItem(i){
     <h3 class="serif">${esc(it.pose.name)}</h3>
     <div class="field"><label>Cue / note for this pose</label><textarea id="ie_notes" rows="3">${esc(it.notes||"")}</textarea></div>
     <div class="field"><label>Breaths</label><input id="ie_breaths" type="number" min="1" value="${esc(it.breaths||"")}"/></div>
+    <div class="field"><label>Breath pattern</label><select id="ie_breath" class="ie-select">${BREATH_PATTERNS.map(bp=>`<option value="${bp}"${(it.breath_pattern||'Natural')===bp?' selected':''}>${bp}</option>`).join("")}</select></div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancel</button>
       <button class="btn" style="flex:1" onclick="saveItem(${i})">Done</button>
     </div></div></div>`;
   $("ovl").onclick=closeModal;
 }
-function saveItem(i){items[i].notes=$("ie_notes").value;const b=$("ie_breaths").value;items[i].breaths=b?parseInt(b):"";closeModal();renderCanvas();}
+function saveItem(i){items[i].notes=$("ie_notes").value;const b=$("ie_breaths").value;items[i].breaths=b?parseInt(b):"";items[i].breath_pattern=$("ie_breath").value;closeModal();renderCanvas();}
 
 /* SAVE / LOAD */
 function tagsArr(){return ($("m_tags").value||"").split(",").map(s=>s.trim()).filter(Boolean);}
@@ -461,7 +509,7 @@ $("b_save").onclick=async()=>{
     pose_id:it.kind==="pose"?it.pose.id:null,
     custom_name:it.kind==="section"?it.title:it.pose.name,
     custom_sanskrit:it.kind==="pose"?it.pose.sanskrit_name:null,
-    notes:it.notes||null,custom_breaths:it.kind==="pose"&&it.breaths?parseInt(it.breaths):null,
+    notes:it.notes||null,custom_breaths:it.kind==="pose"&&it.breaths?parseInt(it.breaths):null,custom_breath_pattern:it.kind==="pose"?(it.breath_pattern||null):null,
     emoji:it.kind==="pose"?it.pose.emoji:null,level:it.kind==="pose"?it.pose.difficulty_level:null}));
   if(rows.length){const r=await sb.from("sequence_items").insert(rows);if(r.error)return toast("Saved sequence, but poses failed: "+r.error.message);}
   toast("Saved ✓");
@@ -596,7 +644,7 @@ async function loadSeq(id){
   items=(its||[]).map(it=>{
     if(it.item_type==="section")return{kind:"section",title:it.custom_name||"Section"};
     const p=POSES.find(x=>String(x.id)===String(it.pose_id))||{id:it.pose_id,name:it.custom_name,sanskrit_name:it.custom_sanskrit,emoji:it.emoji};
-    return{kind:"pose",pose:p,notes:it.notes||"",breaths:it.custom_breaths||""};
+    return{kind:"pose",pose:p,notes:it.notes||"",breaths:it.custom_breaths||"",breath_pattern:it.custom_breath_pattern||"Natural"};
   });
   closeModal();renderCanvas();toast("Loaded “"+(s.name||"")+"”");
 }
@@ -738,7 +786,7 @@ async function loadCommunity(id){
   $("m_tags").value=arr(s.tags).join(", ");$("m_share").checked=false;
   items=(its||[]).map(it=>{if(it.item_type==="section")return{kind:"section",title:it.custom_name||"Section"};
     const p=POSES.find(x=>String(x.id)===String(it.pose_id))||{id:it.pose_id,name:it.custom_name,sanskrit_name:it.custom_sanskrit,emoji:it.emoji};
-    return{kind:"pose",pose:p,notes:it.notes||"",breaths:it.custom_breaths||""};});
+    return{kind:"pose",pose:p,notes:it.notes||"",breaths:it.custom_breaths||"",breath_pattern:it.custom_breath_pattern||"Natural"};});
   closeModal();renderCanvas();toast("Loaded a copy \u2014 tweak and Save to make it yours");
 }
 window.openAI=openAI;window.runAI=runAI;window.openCommunity=openCommunity;window.loadCommunity=loadCommunity;
@@ -764,7 +812,7 @@ async function saveAsTemplate(){
   if(error)return toast("Failed: "+error.message);
   const rows=items.map((it,i)=>({sequence_id:data.id,position:i,item_type:it.kind,pose_id:it.kind==="pose"?it.pose.id:null,
     custom_name:it.kind==="section"?it.title:it.pose.name,custom_sanskrit:it.kind==="pose"?it.pose.sanskrit_name:null,
-    notes:it.notes||null,custom_breaths:it.kind==="pose"&&it.breaths?parseInt(it.breaths):null,
+    notes:it.notes||null,custom_breaths:it.kind==="pose"&&it.breaths?parseInt(it.breaths):null,custom_breath_pattern:it.kind==="pose"?(it.breath_pattern||null):null,
     emoji:it.kind==="pose"?it.pose.emoji:null,level:it.kind==="pose"?it.pose.difficulty_level:null}));
   if(rows.length)await sb.from("sequence_items").insert(rows);
   toast("Saved as template \u2713");openTemplates();
@@ -777,7 +825,7 @@ async function loadTemplate(id){
   setSel("m_level",s.level);setSel("m_duration",s.duration_label);setSel("m_style",s.style);$("m_tags").value=arr(s.tags).join(", ");$("m_share").checked=false;applyTheme(s.theme||"classic");
   items=(its||[]).map(it=>{if(it.item_type==="section")return{kind:"section",title:it.custom_name||"Section"};
     const p=POSES.find(x=>String(x.id)===String(it.pose_id))||{id:it.pose_id,name:it.custom_name,sanskrit_name:it.custom_sanskrit,emoji:it.emoji};
-    return{kind:"pose",pose:p,notes:it.notes||"",breaths:it.custom_breaths||""};});
+    return{kind:"pose",pose:p,notes:it.notes||"",breaths:it.custom_breaths||"",breath_pattern:it.custom_breath_pattern||"Natural"};});
   closeModal();renderCanvas();toast("Template loaded");
 }
 
