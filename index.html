@@ -11,7 +11,7 @@
   :root{
     --bg:#F5F1F4; --card:#fff; --ink:#2C2238; --head:#3A2E48; --aub:#4A3A5A;
     --rose:#C8A0A6; --clayDk:#A87C83; --sage:#a8ad91; --jade:#2E7D6B; --amber:#B98A1F;
-    --muted:#8A8090; --line:#ECE5EC; --lineDk:#DDD2DD; --field:#FBF9FB;
+    --muted:#8A8090; --line:#ECE5EC; --lineDk:#DDD2DD; --field:#f3f3f3;
     --font-head:'Playfair Display',Georgia,serif; --font-body:'Poppins',system-ui,sans-serif;
   }
   *{box-sizing:border-box}
@@ -65,7 +65,9 @@
 
   /* builder */
   .build{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px}
-  .titlein{font-family:var(--font-head);font-size:24px;color:var(--clayDk);border:none;outline:none;width:100%;background:none;margin-bottom:4px}
+  .titlein{font-family:var(--font-head);font-size:24px;color:var(--clayDk);border:1px solid var(--line);border-radius:10px;outline:none;width:100%;background:var(--field);padding:8px 14px;margin-bottom:12px}
+  .titlein:focus{border-color:var(--rose)}
+  .titlein::placeholder{color:var(--clayDk);opacity:.5}
   .meta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
   .meta .full{grid-column:1/-1}
   .meta input,.meta select,.meta textarea{width:100%;padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:var(--field);outline:none}
@@ -491,7 +493,7 @@ function applyDesign(d){
   if(d.color_primary){const pr=d.color_primary,dk=pr;r.setProperty('--rose',pr);r.setProperty('--head',pr);r.setProperty('--clayDk',dk);r.setProperty('--aub',dk);}
   if(d.color_secondary)r.setProperty('--sage',d.color_secondary);
   if(d.color_page_bg)r.setProperty('--bg',d.color_page_bg);
-  if(d.color_surface){r.setProperty('--card',d.color_surface);r.setProperty('--field',d.color_surface);}
+  if(d.color_surface){r.setProperty('--card',d.color_surface);}
   if(d.color_body_text)r.setProperty('--ink',d.color_body_text);
   if(d.color_secondary_text)r.setProperty('--muted',d.color_secondary_text);
   const head=d.font_heading||'Playfair Display',body=d.font_body||'Poppins';
@@ -708,7 +710,7 @@ loadDesign();init();
         f('--ppy-sage',S); f('--sage',S);
         f('--ppy-ink',d.color_body_text); f('--ink',d.color_body_text);
         f('--ppy-bg',d.color_page_bg); f('--bg',d.color_page_bg);
-        f('--ppy-surface',d.color_surface); f('--card',d.color_surface); f('--field',d.color_surface);
+        f('--ppy-surface',d.color_surface); f('--card',d.color_surface);
         f('--ppy-muted',d.color_secondary_text); f('--muted',d.color_secondary_text);
       })();
       if(d.app_name){ document.querySelectorAll(".ppy-brand .wm").forEach(function(e){e.textContent=d.app_name;}); }
