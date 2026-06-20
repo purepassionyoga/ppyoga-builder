@@ -331,6 +331,7 @@
         <button class="btn ghost" id="b_new">✦ New</button>
         <button class="btn ghost" id="b_section">＋ Section</button>
         <button class="btn ghost" id="b_print">🖨 Print</button>
+        <button class="btn ghost" id="b_share">🔗 Share</button>
         <button class="btn ghost" id="b_clear">🧹 Clear</button>
         <span style="flex:1"></span>
         <button class="btn ghost" id="b_templates">📋 Templates</button>
@@ -532,6 +533,42 @@ $("b_clear").onclick=()=>{if(items.length&&!confirm("Clear all poses from this s
 function setSel(id,val){var el=$(id);if(!el)return;val=val||"";if(val&&!Array.prototype.some.call(el.options,function(o){return o.value===val;})){var o=document.createElement("option");o.value=val;o.textContent=val;el.appendChild(o);}el.value=val;}
 function reset(){currentId=null;items=[];["m_name","m_description","m_playlist","m_level","m_duration","m_style","m_tags"].forEach(k=>$(k).value="");$("m_share").checked=false;renderCanvas();applyBuilderDefaults();}
 $("b_print").onclick=openPrintReview;
+$("b_share").onclick=shareSequence;
+async function shareSequence(){
+  if(!currentId)return toast("Save your sequence first, then share.");
+  const{data:src,error:e0}=await sb.from("sequences").select("share_token,name").eq("id",currentId).single();
+  if(e0)return toast("Couldn't open share: "+e0.message);
+  let token=src&&src.share_token;
+  if(!token){
+    token=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():(Date.now()+"-"+Math.random().toString(16).slice(2));
+    const{error}=await sb.from("sequences").update({share_token:token}).eq("id",currentId);
+    if(error)return toast("Couldn't create share link: "+error.message);
+  }
+  let base=location.origin;
+  try{const{data:cfg}=await sb.from("app_settings").select("value").eq("key","site").single();if(cfg&&cfg.value&&cfg.value.public_base_url)base=cfg.value.public_base_url;}catch(e){}
+  const url=base.replace(/\/+$/,"")+"/s?t="+token;
+  const qr="https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data="+encodeURIComponent(url);
+  $("modalRoot").innerHTML=`<div class="ovl" id="ovl"><div class="modal" onclick="event.stopPropagation()">
+    <h3 class="serif">Share with students</h3>
+    <p style="color:var(--muted);font-size:13px;margin:-4px 0 12px">Anyone with this link sees a clean, read-only version of \u201c${esc(src.name||"this sequence")}\u201d \u2014 no account needed.</p>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+      <input id="sh_url" readonly value="${esc(url)}" style="flex:1;min-width:0;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--field);font-size:13px;color:var(--ink)"/>
+      <button class="btn" id="sh_copy">Copy</button>
+    </div>
+    <div style="text-align:center;margin-bottom:6px"><img src="${qr}" alt="QR code" width="200" height="200" style="border:1px solid var(--line);border-radius:12px;padding:8px;background:#fff"/></div>
+    <div style="text-align:center;font-size:12px;color:var(--muted);margin-bottom:16px">Students can scan this QR code to open the sequence.</div>
+    <div style="display:flex;gap:8px">
+      <a class="btn ghost" style="flex:1;text-align:center;text-decoration:none" href="${esc(url)}" target="_blank" rel="noopener">Open student view \u2197</a>
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Done</button>
+    </div></div></div>`;
+  $("ovl").onclick=closeModal;
+  $("sh_copy").onclick=function(){
+    const i=$("sh_url"); i.select(); i.setSelectionRange(0,99999);
+    const done=function(){toast("Link copied 🔗");};
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(i.value).then(done).catch(function(){try{document.execCommand("copy");done();}catch(e){}});}
+    else{try{document.execCommand("copy");done();}catch(e){}}
+  };
+}
 
 function openPrintReview(){
   var poseItems=items.map(function(it,idx){return {it:it,idx:idx};}).filter(function(x){return x.it.kind==="pose";});
