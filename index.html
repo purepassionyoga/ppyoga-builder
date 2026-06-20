@@ -148,6 +148,26 @@
   .modal h3{font-family:var(--font-head);color:var(--head);margin:0 0 12px}
   .savedrow{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer}
   .savedrow:hover{background:#FBF7FA}
+  .printmodal{max-width:580px;width:100%;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden}
+  .pm-head{padding:22px 26px 14px;border-bottom:1px solid var(--line)}
+  .pm-title{font-family:var(--font-head);color:var(--head);font-size:22px}
+  .pm-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .pm-tabs{display:flex;gap:8px;margin-top:14px;align-items:center}
+  .pm-tabs .lbl{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-right:2px}
+  .pm-tab{font:inherit;font-size:12px;font-weight:500;padding:6px 14px;border-radius:8px;border:1.5px solid var(--lineDk);background:transparent;color:var(--muted);cursor:pointer}
+  .pm-tab.on{background:var(--rose);border-color:var(--rose);color:#fff}
+  .pm-list{padding:6px 26px;overflow-y:auto;flex:1}
+  .pm-row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+  .pm-num{color:#bbb;font-size:12px;width:16px;text-align:right;padding-top:3px}
+  .pm-img{width:40px;height:40px;border-radius:8px;background:var(--field);display:flex;align-items:center;justify-content:center;overflow:hidden;flex:0 0 auto;font-size:22px}
+  .pm-img img{width:100%;height:100%;object-fit:contain}
+  .pm-info{flex:1;min-width:0}
+  .pm-name{font-family:var(--font-head);color:var(--rose);font-size:15px;font-weight:600}
+  .pm-san{font-size:11px;color:var(--sage);font-style:italic;margin-bottom:6px}
+  .pm-note{width:100%;padding:8px 10px;border:1px solid var(--lineDk);border-radius:8px;background:var(--field);font:inherit;font-size:13px;color:var(--ink);outline:none;resize:vertical}
+  .pm-note:focus{border-color:var(--rose)}
+  .pm-foot{padding:14px 26px 20px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0}
+  .pm-hint{font-size:12px;color:var(--muted)}
 
   @media print{
     body{background:#fff}
@@ -450,7 +470,106 @@ $("b_new").onclick=()=>{if(items.length&&!confirm("Start a new sequence? Unsaved
 $("b_clear").onclick=()=>{if(items.length&&!confirm("Clear all poses from this sequence?"))return;items=[];renderCanvas();};
 function setSel(id,val){var el=$(id);if(!el)return;val=val||"";if(val&&!Array.prototype.some.call(el.options,function(o){return o.value===val;})){var o=document.createElement("option");o.value=val;o.textContent=val;el.appendChild(o);}el.value=val;}
 function reset(){currentId=null;items=[];["m_name","m_description","m_playlist","m_level","m_duration","m_style","m_tags"].forEach(k=>$(k).value="");$("m_share").checked=false;renderCanvas();applyBuilderDefaults();}
-$("b_print").onclick=()=>{updatePrintHead();window.print();};
+$("b_print").onclick=openPrintReview;
+
+function openPrintReview(){
+  var poseItems=items.map(function(it,idx){return {it:it,idx:idx};}).filter(function(x){return x.it.kind==="pose";});
+  if(!poseItems.length){ toast("Add a pose first"); return; }
+  var ov=document.createElement("div"); ov.className="ovl"; ov.id="printOvl";
+  var rows=poseItems.map(function(x,n){ var p=x.it.pose;
+    var thumb=p.image_url?('<img src="'+esc(p.image_url)+'">'):(p.emoji||"\ud83e\uddd8");
+    return '<div class="pm-row"><div class="pm-num">'+(n+1)+'</div><div class="pm-img">'+thumb+'</div>'
+      +'<div class="pm-info"><div class="pm-name">'+esc(p.name)+'</div><div class="pm-san">'+esc(p.sanskrit_name||"")+'</div>'
+      +'<textarea class="pm-note" rows="2" data-idx="'+x.idx+'" placeholder="Add instructor notes, cues, or transitions\u2026">'+esc(x.it.notes||"")+'</textarea></div></div>';
+  }).join("");
+  ov.innerHTML='<div class="modal printmodal" onclick="event.stopPropagation()">'
+    +'<div class="pm-head"><div class="pm-title">\ud83d\udda8\ufe0f Review &amp; Print</div>'
+    +'<div class="pm-sub">Add or edit your notes for each pose before printing</div>'
+    +'<div class="pm-tabs"><span class="lbl">Layout</span>'
+    +'<button class="pm-tab on" data-l="list">\u2630 List</button>'
+    +'<button class="pm-tab" data-l="cards">\u229e Cards</button>'
+    +'<button class="pm-tab" data-l="notes">\ud83d\udcdd Notes only</button></div></div>'
+    +'<div class="pm-list">'+rows+'</div>'
+    +'<div class="pm-foot"><div class="pm-hint">Notes are saved with your sequence when you print</div>'
+    +'<div style="display:flex;gap:8px"><button class="btn ghost" id="pmCancel">Cancel</button>'
+    +'<button class="btn" id="pmGo">Continue to Print \u2192</button></div></div></div>';
+  ov.addEventListener("click",function(){ ov.remove(); });
+  document.body.appendChild(ov);
+  var layout="list";
+  ov.querySelectorAll(".pm-tab").forEach(function(bt){ bt.onclick=function(){ ov.querySelectorAll(".pm-tab").forEach(function(x){x.classList.remove("on");}); bt.classList.add("on"); layout=bt.getAttribute("data-l"); }; });
+  $("pmCancel").onclick=function(){ ov.remove(); };
+  $("pmGo").onclick=function(){
+    ov.querySelectorAll("textarea[data-idx]").forEach(function(t){ items[+t.getAttribute("data-idx")].notes=t.value; });
+    renderCanvas(); var L=layout; ov.remove(); printDoc(L);
+  };
+}
+function printDoc(layout){
+  var cs=getComputedStyle(document.documentElement), gv=function(n,f){var v=(cs.getPropertyValue(n)||"").trim();return v||f;};
+  var ROSE=gv("--rose","#C8A0A6"), SAGE=gv("--sage","#a8ad91");
+  var brandEl=document.querySelector(".ppy-brand .wm"), brand=(brandEl&&brandEl.textContent)||"Pure Passion Yoga";
+  var title=($("m_name").value||"My Yoga Sequence"), level=$("m_level").value, dur=$("m_duration").value, style=$("m_style").value;
+  var poseItems=items.filter(function(it){return it.kind==="pose";});
+  var mins=Math.round(poseItems.reduce(function(s,it){return s+((parseInt(it.breaths)||5)*6);},0)/60);
+  function E(s){return (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+  function img(p,sz){ return p.image_url?('<img src="'+E(p.image_url)+'" style="width:'+sz+'px;height:'+sz+'px;object-fit:contain">'):('<span style="font-size:'+Math.round(sz*0.5)+'px">'+(p.emoji||"\ud83e\uddd8")+'</span>'); }
+  var CSS='*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:Poppins,system-ui,sans-serif;padding:30px 34px;color:#3a3a3a;background:#fff}'
+    +'.phead{margin-bottom:18px;padding-bottom:12px;border-bottom:2px solid '+ROSE+'}'
+    +'.brand{font-family:\'Playfair Display\',serif;font-size:11px;color:'+ROSE+';letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}'
+    +'h1{font-family:\'Playfair Display\',serif;font-size:26px;color:'+ROSE+';margin-bottom:4px}'
+    +'.meta{font-size:12px;color:#7a7a7a}'
+    +'.styles{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}'
+    +'.styles span{font-size:10px;padding:2px 8px;border-radius:5px;background:#f0ebe8;color:'+SAGE+'}'
+    +'.footer{margin-top:22px;font-size:9px;color:#bbb;text-align:center;border-top:1px solid #e8e0de;padding-top:12px;letter-spacing:.04em}'
+    +'table{width:100%;border-collapse:collapse}'
+    +'th{text-align:left;font-size:10px;font-weight:500;color:'+SAGE+';letter-spacing:.06em;text-transform:uppercase;padding:8px;border-bottom:2px solid '+ROSE+'}'
+    +'td{padding:9px 8px;border-bottom:1px solid #f0ebe8;vertical-align:top;font-size:12px}'
+    +'tr{break-inside:avoid;page-break-inside:avoid}'
+    +'tr:nth-child(even) td{background:#fdf8f7}'
+    +'.num{text-align:center;color:#bbb;font-size:11px;width:24px}.im{text-align:center;width:44px}'
+    +'.san{display:block;color:'+SAGE+';font-style:italic;font-size:11px}'
+    +'.lv{font-size:11px;color:#888}.hold{font-size:11px;white-space:nowrap}.nts{color:#666;font-size:11px}'
+    +'.pn{font-weight:600;color:'+ROSE+';font-size:13px;white-space:nowrap}.nt{font-size:12px;line-height:1.6}'
+    +'.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}'
+    +'.card{border:1.5px solid rgba(0,0,0,.08);border-radius:14px;padding:14px 12px;display:flex;flex-direction:column;align-items:center;gap:5px;text-align:center;position:relative;break-inside:avoid;page-break-inside:avoid}'
+    +'.cn{position:absolute;top:8px;left:11px;font-size:10px;color:#bbb;font-weight:600}'
+    +'.ci{width:130px;height:130px;display:flex;align-items:center;justify-content:center;background:#fdf8f7;border-radius:10px;overflow:hidden}'
+    +'.cnm{font-family:\'Playfair Display\',serif;font-size:14px;font-weight:600;color:'+ROSE+';line-height:1.2}'
+    +'.csn{font-size:10px;color:'+SAGE+';font-style:italic}.cm{font-size:10px;color:#888;margin-top:2px}'
+    +'.cnotes{font-size:10px;color:#666;font-style:italic;border-top:1px solid #f0ebe8;padding-top:6px;margin-top:2px;width:100%;line-height:1.4}';
+  var page, body;
+  if(layout==="cards"){
+    page="landscape";
+    body='<div class="grid">'+poseItems.map(function(it,i){ var p=it.pose;
+      return '<div class="card"><div class="cn">'+(i+1)+'</div><div class="ci">'+img(p,120)+'</div>'
+        +'<div class="cnm">'+E(p.name)+'</div><div class="csn">'+E(p.sanskrit_name||"")+'</div>'
+        +'<div class="cm">'+E(p.difficulty_level||"")+' &nbsp;\u00b7&nbsp; '+((parseInt(it.breaths)||5))+' breaths</div>'
+        +(it.notes?('<div class="cnotes">'+E(it.notes)+'</div>'):"")+'</div>'; }).join("")+'</div>';
+  } else if(layout==="notes"){
+    page="portrait";
+    var nr=poseItems.filter(function(it){return it.notes;}).map(function(it){ return '<tr><td class="pn">'+E(it.pose.name)+'</td><td class="nt">'+E(it.notes)+'</td></tr>'; }).join("");
+    body='<table><thead><tr><th>Pose</th><th>Notes &amp; cues</th></tr></thead><tbody>'+(nr||'<tr><td colspan="2" style="color:#999">No notes added yet.</td></tr>')+'</tbody></table>';
+  } else {
+    page="portrait";
+    body='<table><thead><tr><th>#</th><th></th><th>Pose</th><th>Level</th><th>Hold</th><th>Notes</th></tr></thead><tbody>'
+      +poseItems.map(function(it,i){ var p=it.pose;
+        return '<tr><td class="num">'+(i+1)+'</td><td class="im">'+img(p,34)+'</td>'
+          +'<td><strong>'+E(p.name)+'</strong><span class="san">'+E(p.sanskrit_name||"")+'</span></td>'
+          +'<td class="lv">'+E(p.difficulty_level||"")+'</td><td class="hold">'+((parseInt(it.breaths)||5))+' breaths</td>'
+          +'<td class="nts">'+E(it.notes||"\u2014")+'</td></tr>'; }).join("")+'</tbody></table>';
+  }
+  var metaLine=[level,dur,poseItems.length+" poses","~"+mins+" min"].filter(Boolean).join(" &nbsp;\u00b7&nbsp; ");
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+E(title)+'</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Poppins:wght@300;400;500&display=swap" rel="stylesheet">'
+    +'<style>'+CSS+'@page{size:'+page+';margin:14mm}</style></head><body>'
+    +'<div class="phead"><div class="brand">'+E(brand)+'</div><h1>'+E(title)+'</h1><div class="meta">'+metaLine+'</div>'
+    +(style?('<div class="styles">'+style.split(",").map(function(s){return '<span>'+E(s.trim())+'</span>';}).join("")+'</div>'):"")+'</div>'
+    +body+'<div class="footer">\u00a9 '+E(brand)+' \u00b7 purepassionyoga.com \u00b7 All rights reserved</div>'
+    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},350);}<'+'/scr'+'ipt></body></html>';
+  var w=window.open("","_blank"); if(!w){ toast("Allow pop-ups to print"); return; }
+  w.document.write(html); w.document.close();
+}
+
 
 $("b_load").onclick=async()=>{
   const{data,error}=await sb.from("sequences").select("*").eq("owner_id",SESSION.user.id).eq("is_template",false).order("updated_at",{ascending:false});
