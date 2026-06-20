@@ -363,7 +363,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const arr=v=>Array.isArray(v)?v:[];
 
-let SESSION=null, POSES=[], catFilter="", items=[], currentId=null, DRAG=null, seqTheme="classic", IS_ADMIN=false;
+let SESSION=null, POSES=[], catFilter="", items=[], currentId=null, DRAG=null, seqTheme="classic", IS_ADMIN=false, FAVS=new Set();
 
 /* AUTH */
 async function init(){const{data:{session}}=await sb.auth.getSession();if(session)showApp(session);else $("login").classList.remove("hidden");}
@@ -385,14 +385,16 @@ async function loadPoses(){
   const{data,error}=await sb.from("poses").select("id,name,sanskrit_name,emoji,image_url,category,difficulty_level,teaching_cues,short_description").order("canonical_pose_id");
   if(error){$("plist").innerHTML='<div style="color:#A03A22;padding:8px">'+esc(error.message)+'</div>';return;}
   POSES=data||[];
+  try{ if(SESSION){ const f=await sb.from("favorites").select("pose_id").eq("user_id",SESSION.user.id); FAVS=new Set((f.data||[]).map(r=>String(r.pose_id))); } }catch(e){}
   const cats=[...new Set(POSES.map(p=>p.category).filter(Boolean))].sort();
-  $("cats").innerHTML=`<span class="cat ${catFilter===""?"on":""}" data-c="">All</span>`+cats.map(c=>`<span class="cat ${catFilter===c?"on":""}" data-c="${esc(c)}">${esc(c)}</span>`).join("");
+  const favChip=FAVS.size?`<span class="cat ${catFilter==="__fav__"?"on":""}" data-c="__fav__">\u2665 Favorites (${FAVS.size})</span>`:"";
+  $("cats").innerHTML=`<span class="cat ${catFilter===""?"on":""}" data-c="">All</span>`+favChip+cats.map(c=>`<span class="cat ${catFilter===c?"on":""}" data-c="${esc(c)}">${esc(c)}</span>`).join("");
   $("cats").querySelectorAll(".cat").forEach(el=>el.onclick=()=>{catFilter=el.dataset.c;loadPoses();renderPicker();});
   renderPicker();
 }
 function renderPicker(){
   const q=($("psearch").value||"").toLowerCase();
-  const list=POSES.filter(p=>(!catFilter||p.category===catFilter)&&(!q||(p.name||"").toLowerCase().includes(q)||(p.sanskrit_name||"").toLowerCase().includes(q)));
+  const list=POSES.filter(p=>(catFilter==="__fav__"?FAVS.has(String(p.id)):(!catFilter||p.category===catFilter))&&(!q||(p.name||"").toLowerCase().includes(q)||(p.sanskrit_name||"").toLowerCase().includes(q)));
   $("plist").innerHTML=list.map(p=>{
     const cue=arr(p.teaching_cues)[0]||p.short_description||"";
     const thumb=p.image_url?`<img src="${esc(p.image_url)}">`:(p.emoji||"🧘");
