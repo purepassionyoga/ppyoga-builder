@@ -161,6 +161,10 @@
   .modal h3{font-family:var(--font-head);color:var(--head);margin:0 0 12px}
   .savedrow{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer}
   .savedrow:hover{background:#FBF7FA}
+  .savedacts{display:flex;gap:4px;flex:0 0 auto}
+  .mini{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 8px;font-size:13px;cursor:pointer;color:var(--muted);line-height:1}
+  .mini:hover{background:var(--field);color:var(--head)}
+  .mini.danger:hover{background:#fbeaea;color:#b3261e;border-color:#e6b8b8}
   .printmodal{max-width:580px;width:100%;max-height:86vh;display:flex;flex-direction:column;padding:0;overflow:hidden}
   .pm-head{padding:22px 26px 14px;border-bottom:1px solid var(--line)}
   .pm-title{font-family:var(--font-head);color:var(--head);font-size:22px}
@@ -482,6 +486,7 @@ function editItem(i){
     <div class="field"><label>Cue / note for this pose</label><textarea id="ie_notes" rows="3">${esc(it.notes||"")}</textarea></div>
     <div class="field"><label>Breaths</label><input id="ie_breaths" type="number" min="1" value="${esc(it.breaths||"")}"/></div>
     <div class="field"><label>Breath pattern</label><select id="ie_breath" class="ie-select">${BREATH_PATTERNS.map(bp=>`<option value="${bp}"${(it.breath_pattern||'Natural')===bp?' selected':''}>${bp}</option>`).join("")}</select></div>
+    <div class="field"><label>Replace pose</label><select id="ie_replace" class="ie-select" onchange="substitutePose(${i},this.value)"><option value="">Swap this pose for another\u2026</option>${POSES.map(p=>`<option value="${p.id}">${esc(p.name)}${p.sanskrit_name?" \u2014 "+esc(p.sanskrit_name):""}</option>`).join("")}</select><div style="font-size:11px;color:var(--muted);margin-top:4px">Keeps your notes, breaths &amp; breath pattern.</div></div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancel</button>
       <button class="btn" style="flex:1" onclick="saveItem(${i})">Done</button>
@@ -489,6 +494,13 @@ function editItem(i){
   $("ovl").onclick=closeModal;
 }
 function saveItem(i){items[i].notes=$("ie_notes").value;const b=$("ie_breaths").value;items[i].breaths=b?parseInt(b):"";items[i].breath_pattern=$("ie_breath").value;closeModal();renderCanvas();}
+function substitutePose(i,pid){
+  if(!pid)return;
+  const np=POSES.find(x=>String(x.id)===String(pid)); if(!np)return;
+  const cur=items[i]||{};
+  items[i]={kind:"pose",pose:np,notes:cur.notes||"",breaths:cur.breaths||"",breath_pattern:cur.breath_pattern||"Natural"};
+  closeModal();renderCanvas();toast("Replaced with "+np.name);
+}
 
 /* SAVE / LOAD */
 function tagsArr(){return ($("m_tags").value||"").split(",").map(s=>s.trim()).filter(Boolean);}
@@ -619,20 +631,87 @@ function printDoc(layout){
 }
 
 
-$("b_load").onclick=async()=>{
+async function openLoadPanel(){
   const{data,error}=await sb.from("sequences").select("*").eq("owner_id",SESSION.user.id).eq("is_template",false).order("updated_at",{ascending:false});
   if(error)return toast(error.message);
   const rows=(data||[]).map(s=>`<div class="savedrow" data-id="${s.id}">
-    <div style="flex:1"><div style="font-weight:500;color:var(--head)">${esc(s.name)}</div>
-    <div style="color:var(--muted);font-size:12px">${esc(s.level||"")} ${esc(s.duration_label||"")} · ${s.visibility}</div></div>
-    <span style="color:var(--muted);font-size:11px">${new Date(s.updated_at).toLocaleDateString()}</span></div>`).join("")
+    <div style="flex:1;min-width:0;cursor:pointer" data-act="load"><div style="font-weight:500;color:var(--head)">${esc(s.name)}</div>
+    <div style="color:var(--muted);font-size:12px">${esc(s.level||"")} ${esc(s.duration_label||"")} \u00b7 ${s.visibility} \u00b7 ${new Date(s.updated_at).toLocaleDateString()}</div></div>
+    <div class="savedacts">
+      <button class="mini" data-act="dup" title="Duplicate">\u29c9</button>
+      <button class="mini" data-act="swap" title="Duplicate & swap a pose">\u21c4</button>
+      <button class="mini danger" data-act="del" title="Delete">\u2715</button>
+    </div></div>`).join("")
     ||'<div style="color:var(--muted)">No saved sequences yet.</div>';
   $("modalRoot").innerHTML=`<div class="ovl" id="ovl"><div class="modal" onclick="event.stopPropagation()">
     <h3 class="serif">Load a sequence</h3>${rows}
     <button class="btn ghost" style="margin-top:14px;width:100%" onclick="closeModal()">Cancel</button></div></div>`;
   $("ovl").onclick=closeModal;
-  $("modalRoot").querySelectorAll(".savedrow").forEach(el=>el.onclick=()=>loadSeq(el.dataset.id));
-};
+  $("modalRoot").querySelectorAll(".savedrow").forEach(el=>{
+    const id=el.dataset.id;
+    const L=el.querySelector('[data-act="load"]'); if(L)L.onclick=()=>loadSeq(id);
+    const D=el.querySelector('[data-act="dup"]'); if(D)D.onclick=(e)=>{e.stopPropagation();dupSeq(id);};
+    const W=el.querySelector('[data-act="swap"]'); if(W)W.onclick=(e)=>{e.stopPropagation();openSwapModal(id);};
+    const X=el.querySelector('[data-act="del"]'); if(X)X.onclick=(e)=>{e.stopPropagation();delSeq(id);};
+  });
+}
+$("b_load").onclick=openLoadPanel;
+function copyItemRows(its,newId){return (its||[]).map(it=>({sequence_id:newId,position:it.position,item_type:it.item_type,pose_id:it.pose_id,custom_name:it.custom_name,custom_sanskrit:it.custom_sanskrit,notes:it.notes,custom_breaths:it.custom_breaths,custom_breath_pattern:it.custom_breath_pattern,emoji:it.emoji,level:it.level}));}
+async function dupSeq(id){
+  const{data:src}=await sb.from("sequences").select("*").eq("id",id).single();
+  const{data:its}=await sb.from("sequence_items").select("*").eq("sequence_id",id).order("position");
+  if(!src)return;
+  const row={name:(src.name||"Untitled")+" (copy)",level:src.level,style:src.style,duration_label:src.duration_label,description:src.description,playlist_url:src.playlist_url,tags:src.tags,visibility:"private",theme:src.theme,owner_id:SESSION.user.id};
+  const{data:ns,error}=await sb.from("sequences").insert(row).select("id").single();
+  if(error)return toast("Duplicate failed: "+error.message);
+  const ni=copyItemRows(its,ns.id);
+  if(ni.length){const r=await sb.from("sequence_items").insert(ni);if(r.error)return toast("Copied, but items failed: "+r.error.message);}
+  toast("Duplicated \u2192 "+row.name);openLoadPanel();
+}
+async function delSeq(id){
+  if(!confirm("Delete this sequence permanently?"))return;
+  await sb.from("sequence_items").delete().eq("sequence_id",id);
+  const{error}=await sb.from("sequences").delete().eq("id",id);
+  if(error)return toast("Delete failed: "+error.message);
+  if(currentId===id)currentId=null;
+  toast("Deleted");openLoadPanel();
+}
+async function openSwapModal(id){
+  const{data:src}=await sb.from("sequences").select("*").eq("id",id).single();
+  const{data:its}=await sb.from("sequence_items").select("*").eq("sequence_id",id).order("position");
+  if(!src)return;
+  const poseItems=(its||[]).filter(it=>it.item_type!=="section"&&it.pose_id);
+  if(!poseItems.length)return toast("This sequence has no poses to swap.");
+  const seen={},fromOpts=[];
+  poseItems.forEach(it=>{const k=String(it.pose_id);if(!seen[k]){seen[k]=1;const p=POSES.find(x=>String(x.id)===k);fromOpts.push([it.pose_id,(p&&p.name)||it.custom_name||"Pose"]);}});
+  const fromSel='<select id="sw_from" class="ie-select">'+fromOpts.map(o=>`<option value="${o[0]}">${esc(o[1])}</option>`).join("")+'</select>';
+  const toSel='<select id="sw_to" class="ie-select">'+POSES.map(p=>`<option value="${p.id}">${esc(p.name)}${p.sanskrit_name?" \u2014 "+esc(p.sanskrit_name):""}</option>`).join("")+'</select>';
+  $("modalRoot").innerHTML=`<div class="ovl" id="ovl"><div class="modal" onclick="event.stopPropagation()">
+    <h3 class="serif">Duplicate &amp; swap</h3>
+    <p style="color:var(--muted);font-size:13px;margin:-4px 0 12px">Make a copy of \u201c${esc(src.name)}\u201d, replacing every instance of one pose with another.</p>
+    <div class="field"><label>Replace all instances of</label>${fromSel}</div>
+    <div class="field"><label>With</label>${toSel}</div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn ghost" style="flex:1" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="flex:1" id="sw_go">Create copy</button></div></div></div>`;
+  $("ovl").onclick=closeModal;
+  $("sw_go").onclick=()=>doSwap(src,its);
+}
+async function doSwap(src,its){
+  const fromId=$("sw_from").value,toId=$("sw_to").value;
+  const toPose=POSES.find(x=>String(x.id)===String(toId));if(!toPose)return;
+  let n=0;
+  const ni=(its||[]).map(it=>{const b={position:it.position,item_type:it.item_type,pose_id:it.pose_id,custom_name:it.custom_name,custom_sanskrit:it.custom_sanskrit,notes:it.notes,custom_breaths:it.custom_breaths,custom_breath_pattern:it.custom_breath_pattern,emoji:it.emoji,level:it.level};
+    if(it.item_type!=="section"&&String(it.pose_id)===String(fromId)){n++;b.pose_id=toPose.id;b.custom_name=toPose.name;b.custom_sanskrit=toPose.sanskrit_name||null;b.emoji=toPose.emoji||null;b.level=toPose.difficulty_level||null;}
+    return b;});
+  if(!n)return toast("That pose isn't in this sequence.");
+  const row={name:(src.name||"Untitled")+" ("+toPose.name+")",level:src.level,style:src.style,duration_label:src.duration_label,description:src.description,playlist_url:src.playlist_url,tags:src.tags,visibility:"private",theme:src.theme,owner_id:SESSION.user.id};
+  const{data:ns,error}=await sb.from("sequences").insert(row).select("id").single();
+  if(error)return toast("Swap failed: "+error.message);
+  ni.forEach(r=>r.sequence_id=ns.id);
+  if(ni.length){const r=await sb.from("sequence_items").insert(ni);if(r.error)return toast("Created, but items failed: "+r.error.message);}
+  closeModal();toast("Created \u201c"+row.name+"\u201d");openLoadPanel();
+}
 function closeModal(){$("modalRoot").innerHTML="";}
 async function loadSeq(id){
   const{data:s}=await sb.from("sequences").select("*").eq("id",id).single();
@@ -652,7 +731,7 @@ async function loadSeq(id){
 /* misc */
 document.querySelectorAll(".btn.soon").forEach(b=>b.onclick=()=>toast(b.dataset.soon+" — coming in the next update."));
 let tt;function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),2400);}
-window.setItem=(i,f,v)=>{items[i][f]=v;};window.removeItem=removeItem;window.closeModal=closeModal;window.editItem=editItem;window.saveItem=saveItem;
+window.setItem=(i,f,v)=>{items[i][f]=v;};window.removeItem=removeItem;window.closeModal=closeModal;window.editItem=editItem;window.saveItem=saveItem;window.substitutePose=substitutePose;
 $("canvas").addEventListener("dragover",e=>{if(DRAG)e.preventDefault();});
 $("canvas").addEventListener("drop",e=>{if(!DRAG)return;e.preventDefault();handleDrop(items.length);});
 function darken(hex,f){const m=hex.replace('#','');const n=m.length===3?m.split('').map(c=>c+c).join(''):m;const r=Math.round(parseInt(n.slice(0,2),16)*f),g=Math.round(parseInt(n.slice(2,4),16)*f),b=Math.round(parseInt(n.slice(4,6),16)*f);return '#'+[r,g,b].map(x=>Math.min(255,x).toString(16).padStart(2,'0')).join('');}
