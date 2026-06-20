@@ -282,9 +282,9 @@
       <div class="meta">
         <textarea id="m_description" class="full" rows="2" placeholder="Sequence description, intention, or theme… (optional)"></textarea>
         <input id="m_playlist" class="full" placeholder="🎵 Playlist link — Spotify, YouTube, Apple Music… (optional)"/>
-        <input id="m_level" placeholder="Level (e.g. Beginner)"/>
-        <input id="m_duration" placeholder="Duration (e.g. 30 min)"/>
-        <input id="m_style" placeholder="Yoga style (e.g. Vinyasa)"/>
+        <select id="m_level"><option value="">Level…</option><option value="Beginner">Beginner</option><option value="Beginner-Intermediate">Beginner-Intermediate</option><option value="Intermediate">Intermediate</option><option value="Intermediate-Advanced">Intermediate-Advanced</option><option value="Advanced">Advanced</option></select>
+        <select id="m_duration"><option value="">Duration…</option><option value="5 min">5 min</option><option value="10 min">10 min</option><option value="15 min">15 min</option><option value="20 min">20 min</option><option value="25 min">25 min</option><option value="30 min">30 min</option><option value="45 min">45 min</option><option value="60 min">60 min</option><option value="90 min">90 min</option></select>
+        <select id="m_style"><option value="">Yoga style…</option><option value="Acro">Acro</option><option value="Aerial">Aerial</option><option value="Alexander">Alexander</option><option value="Ananda">Ananda</option><option value="Anusara">Anusara</option><option value="Aqua">Aqua</option><option value="Ashtanga">Ashtanga</option><option value="Backmitra">Backmitra</option><option value="Ball">Ball</option><option value="Baptiste">Baptiste</option><option value="Bhakti">Bhakti</option><option value="Bikram">Bikram</option><option value="BMC">BMC</option><option value="Bo">Bo</option><option value="Body Positive">Body Positive</option><option value="Bouddha">Bouddha</option><option value="Chair">Chair</option><option value="Continuum">Continuum</option><option value="Dhyana">Dhyana</option><option value="Do In">Do In</option><option value="Dru">Dru</option><option value="Energy Medicine (EM)">Energy Medicine (EM)</option><option value="Forrest">Forrest</option><option value="Gentle">Gentle</option><option value="Hatha">Hatha</option><option value="Hot">Hot</option><option value="Hypopressive">Hypopressive</option><option value="Integrative">Integrative</option><option value="Iyengar">Iyengar</option><option value="Jain">Jain</option><option value="Jivamukti">Jivamukti</option><option value="Jnana">Jnana</option><option value="Kaiut">Kaiut</option><option value="Karma">Karma</option><option value="Kemetic">Kemetic</option><option value="Kids">Kids</option><option value="Kripalu">Kripalu</option><option value="Kundalini">Kundalini</option><option value="Kurunta">Kurunta</option><option value="Laya">Laya</option><option value="Mandala">Mandala</option><option value="Mantra">Mantra</option><option value="Meridian">Meridian</option><option value="Mommy &amp; Me">Mommy &amp; Me</option><option value="Ortho-Bionomy">Ortho-Bionomy</option><option value="Other">Other</option><option value="Paddle">Paddle</option><option value="Partner">Partner</option><option value="Patanjala">Patanjala</option><option value="Pilates">Pilates</option><option value="Postnatal">Postnatal</option><option value="Power">Power</option><option value="Prenatal">Prenatal</option><option value="Purna">Purna</option><option value="Qigong">Qigong</option><option value="Restorative">Restorative</option><option value="Rocket">Rocket</option><option value="Sattva">Sattva</option><option value="Satyananda">Satyananda</option><option value="Scaravelli">Scaravelli</option><option value="Sculpt">Sculpt</option><option value="Seniors">Seniors</option><option value="Shadow">Shadow</option><option value="Sivananda">Sivananda</option><option value="Somatic">Somatic</option><option value="Tantra">Tantra</option><option value="Teens Yoga">Teens Yoga</option><option value="Therapy">Therapy</option><option value="Viniyoga">Viniyoga</option><option value="Vinyasa">Vinyasa</option><option value="Wheel">Wheel</option><option value="Yang">Yang</option><option value="Yin">Yin</option><option value="Yin-Yang">Yin-Yang</option><option value="Yinyasa">Yinyasa</option><option value="Yoni">Yoni</option></select>
         <input id="m_tags" placeholder="Tags (comma separated)"/>
       </div>
 
@@ -448,6 +448,7 @@ $("b_save").onclick=async()=>{
 };
 $("b_new").onclick=()=>{if(items.length&&!confirm("Start a new sequence? Unsaved changes will be lost."))return;reset();};
 $("b_clear").onclick=()=>{if(items.length&&!confirm("Clear all poses from this sequence?"))return;items=[];renderCanvas();};
+function setSel(id,val){var el=$(id);if(!el)return;val=val||"";if(val&&!Array.prototype.some.call(el.options,function(o){return o.value===val;})){var o=document.createElement("option");o.value=val;o.textContent=val;el.appendChild(o);}el.value=val;}
 function reset(){currentId=null;items=[];["m_name","m_description","m_playlist","m_level","m_duration","m_style","m_tags"].forEach(k=>$(k).value="");$("m_share").checked=false;renderCanvas();applyBuilderDefaults();}
 $("b_print").onclick=()=>{updatePrintHead();window.print();};
 
@@ -471,7 +472,7 @@ async function loadSeq(id){
   const{data:its}=await sb.from("sequence_items").select("*").eq("sequence_id",id).order("position");
   currentId=id;
   $("m_name").value=s.name||"";$("m_description").value=s.description||"";$("m_playlist").value=s.playlist_url||"";
-  $("m_level").value=s.level||"";$("m_duration").value=s.duration_label||"";$("m_style").value=s.style||"";
+  setSel("m_level",s.level);setSel("m_duration",s.duration_label);setSel("m_style",s.style);
   $("m_tags").value=arr(s.tags).join(", ");$("m_share").checked=s.visibility==="community";applyTheme(s.theme||"classic");
   items=(its||[]).map(it=>{
     if(it.item_type==="section")return{kind:"section",title:it.custom_name||"Section"};
@@ -509,8 +510,8 @@ let BSET={};
 async function loadBuilderSettings(){try{const{data}=await sb.from("app_settings").select("value").eq("key","builder").single();BSET=(data&&data.value)||{};applyBuilderDefaults();}catch(e){}}
 function applyBuilderDefaults(){
   if(!$("m_name").value&&BSET.default_title)$("m_name").value=BSET.default_title;
-  if(!$("m_level").value&&BSET.default_level)$("m_level").value=BSET.default_level;
-  if(!$("m_duration").value&&BSET.default_duration)$("m_duration").value=BSET.default_duration;
+  if(!$("m_level").value&&BSET.default_level)setSel("m_level",BSET.default_level);
+  if(!$("m_duration").value&&BSET.default_duration)setSel("m_duration",BSET.default_duration);
   const pf=$("printFooter");if(pf)pf.textContent=BSET.print_footer||"";
 }
 let flowIdx=0,flowRemain=0,flowTimer=null,flowPaused=false,flowChime=false,flowVoice=false,flowBreathSec=5;
@@ -587,7 +588,7 @@ async function runAI(){
       if(p)built.push({kind:"pose",pose:p,notes:it.cue||"",breaths:parseInt(it.breaths)||5});else missed++;});
     if(!built.length)throw new Error("No matching poses came back \u2014 try rephrasing.");
     items=built;if(out.title&&!$("m_name").value.trim())$("m_name").value=out.title;
-    if($("ai_level").value)$("m_level").value=$("ai_level").value;if($("ai_duration").value)$("m_duration").value=$("ai_duration").value;
+    if($("ai_level").value)setSel("m_level",$("ai_level").value);if($("ai_duration").value)setSel("m_duration",$("ai_duration").value);
     closeModal();renderCanvas();toast("Generated "+built.length+" poses"+(missed?" ("+missed+" skipped)":"")+" \u2713");
   }catch(e){const el=$("ai_err");el.textContent=e.message;el.classList.remove("hidden");$("ai_status").textContent="";}
   $("ai_go").disabled=false;$("ai_go").textContent="Generate";
@@ -614,7 +615,7 @@ async function loadCommunity(id){
   const{data:its}=await sb.from("sequence_items").select("*").eq("sequence_id",id).order("position");
   currentId=null;
   $("m_name").value=(s.name||"")+" (copy)";$("m_description").value=s.description||"";$("m_playlist").value=s.playlist_url||"";
-  $("m_level").value=s.level||"";$("m_duration").value=s.duration_label||"";$("m_style").value=s.style||"";
+  setSel("m_level",s.level);setSel("m_duration",s.duration_label);setSel("m_style",s.style);
   $("m_tags").value=arr(s.tags).join(", ");$("m_share").checked=false;
   items=(its||[]).map(it=>{if(it.item_type==="section")return{kind:"section",title:it.custom_name||"Section"};
     const p=POSES.find(x=>String(x.id)===String(it.pose_id))||{id:it.pose_id,name:it.custom_name,sanskrit_name:it.custom_sanskrit,emoji:it.emoji};
@@ -654,7 +655,7 @@ async function loadTemplate(id){
   const{data:its}=await sb.from("sequence_items").select("*").eq("sequence_id",id).order("position");
   currentId=null;
   $("m_name").value=(s.name||"").replace(/ \(template\)$/,"");$("m_description").value=s.description||"";$("m_playlist").value=s.playlist_url||"";
-  $("m_level").value=s.level||"";$("m_duration").value=s.duration_label||"";$("m_style").value=s.style||"";$("m_tags").value=arr(s.tags).join(", ");$("m_share").checked=false;applyTheme(s.theme||"classic");
+  setSel("m_level",s.level);setSel("m_duration",s.duration_label);setSel("m_style",s.style);$("m_tags").value=arr(s.tags).join(", ");$("m_share").checked=false;applyTheme(s.theme||"classic");
   items=(its||[]).map(it=>{if(it.item_type==="section")return{kind:"section",title:it.custom_name||"Section"};
     const p=POSES.find(x=>String(x.id)===String(it.pose_id))||{id:it.pose_id,name:it.custom_name,sanskrit_name:it.custom_sanskrit,emoji:it.emoji};
     return{kind:"pose",pose:p,notes:it.notes||"",breaths:it.custom_breaths||""};});
