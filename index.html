@@ -332,6 +332,7 @@
         <button class="btn ghost" id="b_section">＋ Section</button>
         <button class="btn ghost" id="b_print">🖨 Print</button>
         <button class="btn ghost" id="b_share">🔗 Share</button>
+        <button class="btn ghost" id="b_email" hidden>✉ Weekly email</button>
         <button class="btn ghost" id="b_clear">🧹 Clear</button>
         <span style="flex:1"></span>
         <button class="btn ghost" id="b_templates">📋 Templates</button>
@@ -362,11 +363,11 @@ const $=id=>document.getElementById(id);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const arr=v=>Array.isArray(v)?v:[];
 
-let SESSION=null, POSES=[], catFilter="", items=[], currentId=null, DRAG=null, seqTheme="classic";
+let SESSION=null, POSES=[], catFilter="", items=[], currentId=null, DRAG=null, seqTheme="classic", IS_ADMIN=false;
 
 /* AUTH */
 async function init(){const{data:{session}}=await sb.auth.getSession();if(session)showApp(session);else $("login").classList.remove("hidden");}
-async function showApp(s){SESSION=s;$("login").classList.add("hidden");$("app").classList.remove("hidden");$("whoami").textContent=s.user.email;await loadPoses();renderCanvas();loadBuilderSettings();}
+async function showApp(s){SESSION=s;$("login").classList.add("hidden");$("app").classList.remove("hidden");$("whoami").textContent=s.user.email;sb.from("profiles").select("is_admin").eq("id",s.user.id).single().then(function(r){IS_ADMIN=!!(r.data&&r.data.is_admin);if(IS_ADMIN){var be=$("b_email");if(be)be.hidden=false;}}).catch(function(){});await loadPoses();renderCanvas();loadBuilderSettings();}
 $("signin").onclick=async()=>{
   $("loginErr").classList.add("hidden");
   const email=$("email").value.trim(),password=$("password").value;if(!email||!password)return;
@@ -534,6 +535,40 @@ function setSel(id,val){var el=$(id);if(!el)return;val=val||"";if(val&&!Array.pr
 function reset(){currentId=null;items=[];["m_name","m_description","m_playlist","m_level","m_duration","m_style","m_tags"].forEach(k=>$(k).value="");$("m_share").checked=false;renderCanvas();applyBuilderDefaults();}
 $("b_print").onclick=openPrintReview;
 $("b_share").onclick=shareSequence;
+$("b_email").onclick=openEmailModal;
+function openEmailModal(){
+  if(!IS_ADMIN)return;
+  if(!currentId)return toast("Save your sequence first, then send.");
+  const defSubject="This week's practice: "+($("m_name").value||"New sequence");
+  $("modalRoot").innerHTML=`<div class="ovl" id="ovl"><div class="modal" onclick="event.stopPropagation()">
+    <h3 class="serif">Send as weekly email</h3>
+    <p style="color:var(--muted);font-size:13px;margin:-4px 0 12px">Emails this sequence to your configured audience. Send a test to yourself first.</p>
+    <div class="field"><label>Subject</label><input id="em_subject" class="ie-select" value="${esc(defSubject)}"/></div>
+    <div id="em_status" style="font-size:12.5px;color:var(--muted);margin:8px 0 14px;min-height:16px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn ghost" style="flex:1" id="em_test">Send test to me</button>
+      <button class="btn" style="flex:1" id="em_send">Send to everyone</button>
+    </div>
+    <button class="btn ghost" style="margin-top:8px;width:100%" onclick="closeModal()">Cancel</button>
+  </div></div>`;
+  $("ovl").onclick=closeModal;
+  $("em_test").onclick=function(){sendWeekly(true);};
+  $("em_send").onclick=function(){if(confirm("Send this sequence to your full audience? This cannot be undone."))sendWeekly(false);};
+}
+async function sendWeekly(test){
+  const st=$("em_status"); if(st)st.textContent=test?"Sending test\u2026":"Sending\u2026";
+  const subject=$("em_subject")?$("em_subject").value:"";
+  const{data:{session}}=await sb.auth.getSession();
+  try{
+    const res=await fetch(SUPABASE_URL+"/functions/v1/send-weekly-email",{method:"POST",
+      headers:{"Content-Type":"application/json","apikey":ANON,"Authorization":"Bearer "+(session&&session.access_token)},
+      body:JSON.stringify({sequence_id:currentId,subject:subject,test:test})});
+    const j=await res.json().catch(function(){return {};});
+    if(!res.ok||j.error){ if(st)st.textContent="\u26a0 "+(j.error||("Failed ("+res.status+")")); return; }
+    if(test){ if(st)st.textContent="\u2713 Test sent to your inbox."; toast("Test email sent \u2709"); }
+    else{ closeModal(); toast("Sent to "+(j.sent||0)+" recipient"+((j.sent===1)?"":"s")+" \u2709"); }
+  }catch(e){ if(st)st.textContent="\u26a0 "+String(e&&e.message||e); }
+}
 async function shareSequence(){
   if(!currentId)return toast("Save your sequence first, then share.");
   const{data:src,error:e0}=await sb.from("sequences").select("share_token,name").eq("id",currentId).single();
