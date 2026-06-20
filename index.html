@@ -508,6 +508,7 @@ $("b_save").onclick=async()=>{
   const name=$("m_name").value.trim();
   if(!name)return toast("Give your sequence a name first.");
   if(!items.length)return toast("Add at least one pose.");
+  if(currentId){await snapshotExisting(currentId);}
   const row={name,level:$("m_level").value.trim()||null,style:$("m_style").value.trim()||null,
     duration_label:$("m_duration").value.trim()||null,description:$("m_description").value.trim()||null,
     playlist_url:$("m_playlist").value.trim()||null,tags:tagsArr(),
@@ -638,6 +639,7 @@ async function openLoadPanel(){
     <div style="flex:1;min-width:0;cursor:pointer" data-act="load"><div style="font-weight:500;color:var(--head)">${esc(s.name)}</div>
     <div style="color:var(--muted);font-size:12px">${esc(s.level||"")} ${esc(s.duration_label||"")} \u00b7 ${s.visibility} \u00b7 ${new Date(s.updated_at).toLocaleDateString()}</div></div>
     <div class="savedacts">
+      <button class="mini" data-act="hist" title="Version history">🕘</button>
       <button class="mini" data-act="dup" title="Duplicate">\u29c9</button>
       <button class="mini" data-act="swap" title="Duplicate & swap a pose">\u21c4</button>
       <button class="mini danger" data-act="del" title="Delete">\u2715</button>
@@ -650,12 +652,58 @@ async function openLoadPanel(){
   $("modalRoot").querySelectorAll(".savedrow").forEach(el=>{
     const id=el.dataset.id;
     const L=el.querySelector('[data-act="load"]'); if(L)L.onclick=()=>loadSeq(id);
+    const Hh=el.querySelector('[data-act="hist"]'); if(Hh)Hh.onclick=(e)=>{e.stopPropagation();openVersions(id);};
     const D=el.querySelector('[data-act="dup"]'); if(D)D.onclick=(e)=>{e.stopPropagation();dupSeq(id);};
     const W=el.querySelector('[data-act="swap"]'); if(W)W.onclick=(e)=>{e.stopPropagation();openSwapModal(id);};
     const X=el.querySelector('[data-act="del"]'); if(X)X.onclick=(e)=>{e.stopPropagation();delSeq(id);};
   });
 }
 $("b_load").onclick=openLoadPanel;
+async function snapshotExisting(seqId){
+  try{
+    const{data:src}=await sb.from("sequences").select("*").eq("id",seqId).single();
+    if(!src)return;
+    const{data:its}=await sb.from("sequence_items").select("*").eq("sequence_id",seqId).order("position");
+    const snapshot={meta:{name:src.name,level:src.level,style:src.style,duration_label:src.duration_label,description:src.description,playlist_url:src.playlist_url,tags:src.tags,visibility:src.visibility,theme:src.theme},
+      items:(its||[]).map(it=>({position:it.position,item_type:it.item_type,pose_id:it.pose_id,custom_name:it.custom_name,custom_sanskrit:it.custom_sanskrit,notes:it.notes,custom_breaths:it.custom_breaths,custom_breath_pattern:it.custom_breath_pattern,emoji:it.emoji,level:it.level}))};
+    const ins=await sb.from("sequence_versions").insert({sequence_id:seqId,owner_id:SESSION.user.id,snapshot});
+    if(ins.error)return;
+    const{data:vs}=await sb.from("sequence_versions").select("id").eq("sequence_id",seqId).order("created_at",{ascending:false});
+    if(vs&&vs.length>10){const extra=vs.slice(10).map(v=>v.id);await sb.from("sequence_versions").delete().in("id",extra);}
+  }catch(e){}
+}
+async function openVersions(id){
+  const{data:src}=await sb.from("sequences").select("name").eq("id",id).single();
+  const{data:vs}=await sb.from("sequence_versions").select("id,created_at,snapshot").eq("sequence_id",id).order("created_at",{ascending:false});
+  const list=(vs||[]).map((v,i)=>{
+    const cnt=(v.snapshot&&v.snapshot.items)?v.snapshot.items.filter(x=>x.item_type!=="section").length:0;
+    return `<div class="savedrow"><div style="flex:1"><div style="font-weight:500;color:var(--head)">Version ${vs.length-i} <span style="color:var(--muted);font-weight:400;font-size:12px">\u00b7 ${new Date(v.created_at).toLocaleString()}</span></div>
+      <div style="color:var(--muted);font-size:12px">${cnt} poses</div></div>
+      <button class="mini" data-vid="${v.id}" data-act="restore" title="Restore this version">Restore</button></div>`;
+  }).join("")||'<div style="color:var(--muted)">No earlier versions yet. A version is saved automatically each time you update this sequence.</div>';
+  $("modalRoot").innerHTML=`<div class="ovl" id="ovl"><div class="modal" onclick="event.stopPropagation()">
+    <h3 class="serif">Version history</h3>
+    <p style="color:var(--muted);font-size:13px;margin:-4px 0 12px">${esc((src&&src.name)||"Sequence")} \u2014 last 10 saved versions.</p>
+    ${list}
+    <button class="btn ghost" style="margin-top:14px;width:100%" onclick="closeModal()">Close</button></div></div>`;
+  $("ovl").onclick=closeModal;
+  $("modalRoot").querySelectorAll('[data-act="restore"]').forEach(btn=>btn.onclick=()=>restoreVersion(id,btn.dataset.vid));
+}
+async function restoreVersion(seqId,vid){
+  const{data:v}=await sb.from("sequence_versions").select("snapshot").eq("id",vid).single();
+  if(!v||!v.snapshot)return toast("Couldn't load that version.");
+  const snap=v.snapshot,m=snap.meta||{};
+  currentId=seqId;
+  $("m_name").value=m.name||"";$("m_description").value=m.description||"";$("m_playlist").value=m.playlist_url||"";
+  setSel("m_level",m.level);setSel("m_duration",m.duration_label);setSel("m_style",m.style);
+  $("m_tags").value=arr(m.tags).join(", ");$("m_share").checked=m.visibility==="community";applyTheme(m.theme||"classic");
+  items=(snap.items||[]).map(it=>{
+    if(it.item_type==="section")return{kind:"section",title:it.custom_name||"Section"};
+    const p=POSES.find(x=>String(x.id)===String(it.pose_id))||{id:it.pose_id,name:it.custom_name,sanskrit_name:it.custom_sanskrit,emoji:it.emoji};
+    return{kind:"pose",pose:p,notes:it.notes||"",breaths:it.custom_breaths||"",breath_pattern:it.custom_breath_pattern||"Natural"};
+  });
+  closeModal();renderCanvas();toast("Restored \u2014 review and Save to keep it.");
+}
 function copyItemRows(its,newId){return (its||[]).map(it=>({sequence_id:newId,position:it.position,item_type:it.item_type,pose_id:it.pose_id,custom_name:it.custom_name,custom_sanskrit:it.custom_sanskrit,notes:it.notes,custom_breaths:it.custom_breaths,custom_breath_pattern:it.custom_breath_pattern,emoji:it.emoji,level:it.level}));}
 async function dupSeq(id){
   const{data:src}=await sb.from("sequences").select("*").eq("id",id).single();
